@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+awesome-design-md/
+scratch/
+.agents/
+.impeccable/
+.taste-skill/

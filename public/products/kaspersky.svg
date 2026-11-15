@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" width="100%" height="100%">
+  <defs>
+    <linearGradient id="kasBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#001C18"/>
+      <stop offset="100%" stop-color="#003830"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="320" rx="16" fill="url(#kasBg)"/>
+  <circle cx="240" cy="125" r="55" fill="#00A88E" opacity="0.2"/>
+  <g transform="translate(210, 85)">
+    <path d="M30 0 L55 12 V45 C55 65 30 80 30 80 C30 80 5 65 5 45 V12 Z" fill="none" stroke="#00A88E" stroke-width="6" stroke-linejoin="round"/>
+    <polyline points="18,40 26,48 42,32" fill="none" stroke="#00E5C3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="240" y="245" font-family="system-ui, sans-serif" font-size="20" font-weight="700" fill="#FFFFFF" text-anchor="middle">Kaspersky Total Security 2025</text>
+  <text x="240" y="272" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#00E5C3" text-anchor="middle">ENDPOINT SECURITY · ANTI-RANSOMWARE · 3 THIẾT BỊ</text>
+</svg>

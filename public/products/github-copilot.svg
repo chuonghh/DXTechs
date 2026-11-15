@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" width="100%" height="100%">
+  <defs>
+    <linearGradient id="ghBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0D1117"/>
+      <stop offset="100%" stop-color="#161B22"/>
+    </linearGradient>
+    <linearGradient id="ghGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7928CA"/>
+      <stop offset="100%" stop-color="#FF0080"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="320" rx="16" fill="url(#ghBg)"/>
+  <circle cx="240" cy="125" r="55" fill="url(#ghGrad)"/>
+  <path d="M240 85 C215 85 195 105 195 130 C195 150 208 167 226 173 C228 173 229 172 229 171 L229 164 C215 167 212 157 212 157 C210 152 207 150 207 150 C202 147 207 147 207 147 C212 147 215 152 215 152 C220 160 227 158 230 156 C230 152 232 149 234 147 C223 146 211 142 211 123 C211 118 213 113 216 110 C216 109 214 103 217 96 C217 96 221 95 230 101 C234 100 238 99 242 99 C246 99 250 100 254 101 C263 95 267 96 267 96 C270 103 268 109 268 110 C271 113 273 118 273 123 C273 142 261 146 250 147 C252 149 254 153 254 159 L254 171 C254 172 255 173 257 173 C275 167 288 150 288 130 C288 105 268 85 240 85 Z" fill="#FFFFFF"/>
+  <text x="240" y="245" font-family="system-ui, sans-serif" font-size="20" font-weight="700" fill="#FFFFFF" text-anchor="middle">GitHub Copilot Enterprise</text>
+  <text x="240" y="272" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#A371F7" text-anchor="middle">AI PAIR PROGRAMMER · VS CODE · INTELLIJ</text>
+</svg>

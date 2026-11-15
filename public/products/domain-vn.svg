@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" width="100%" height="100%">
+  <defs>
+    <linearGradient id="vnBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2B0C0E"/>
+      <stop offset="100%" stop-color="#421215"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="320" rx="16" fill="url(#vnBg)"/>
+  <circle cx="240" cy="125" r="55" fill="#DA251D" opacity="0.2"/>
+  <g transform="translate(200, 85)">
+    <rect width="80" height="60" rx="8" fill="#DA251D"/>
+    <polygon points="40,12 45,28 62,28 48,38 54,53 40,43 26,53 32,38 18,28 35,28" fill="#FFFF00" transform="translate(0,-3) scale(0.9) translate(4, 3)"/>
+  </g>
+  <text x="240" y="245" font-family="system-ui, sans-serif" font-size="22" font-weight="800" fill="#FFFFFF" text-anchor="middle">Tên Miền Quốc Gia .VN</text>
+  <text x="240" y="272" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#FFDD00" text-anchor="middle">CHÍNH CHỦ VNNIC · BẢO VỆ THƯƠNG HIỆU DOANH NGHIỆP</text>
+</svg>

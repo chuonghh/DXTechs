@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" width="100%" height="100%">
+  <defs>
+    <linearGradient id="offBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1F0E04"/>
+      <stop offset="50%" stop-color="#3A1A06"/>
+      <stop offset="100%" stop-color="#140802"/>
+    </linearGradient>
+    <linearGradient id="msRed" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FA4616"/>
+      <stop offset="100%" stop-color="#D83B01"/>
+    </linearGradient>
+    <linearGradient id="msGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFB900"/>
+      <stop offset="100%" stop-color="#E88B00"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="320" rx="16" fill="url(#offBg)"/>
+  <circle cx="240" cy="145" r="85" fill="#FA4616" opacity="0.18"/>
+  <g transform="translate(180, 80)">
+    <rect x="0" y="0" width="55" height="55" rx="12" fill="#0078D4"/>
+    <text x="27" y="37" font-family="sans-serif" font-weight="800" font-size="26" fill="#FFF" text-anchor="middle">W</text>
+    <rect x="65" y="0" width="55" height="55" rx="12" fill="#107C41"/>
+    <text x="92" y="37" font-family="sans-serif" font-weight="800" font-size="26" fill="#FFF" text-anchor="middle">X</text>
+    <rect x="0" y="65" width="55" height="55" rx="12" fill="#D83B01"/>
+    <text x="27" y="102" font-family="sans-serif" font-weight="800" font-size="26" fill="#FFF" text-anchor="middle">P</text>
+    <rect x="65" y="65" width="55" height="55" rx="12" fill="#008272"/>
+    <text x="92" y="102" font-family="sans-serif" font-weight="800" font-size="24" fill="#FFF" text-anchor="middle">1T</text>
+  </g>
+  <text x="240" y="255" font-family="system-ui, sans-serif" font-size="20" font-weight="700" fill="#FFFFFF" text-anchor="middle">Microsoft 365 Family</text>
+  <text x="240" y="280" font-family="system-ui, sans-serif" font-size="12" font-weight="600" fill="#FFB900" text-anchor="middle">6 USERS · 6TB ONEDRIVE · GENUINE</text>
+</svg>
