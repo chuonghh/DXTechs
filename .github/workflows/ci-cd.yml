@@ -76,6 +76,7 @@ jobs:
           ln -sfn "$dir" "$APP_DIR/current"
           # keep the 5 newest releases for rollback
           ls -1dt "$APP_DIR"/releases/* | tail -n +6 | xargs -r rm -rf
-          curl -fsS http://127.0.0.1/ | grep -q 'id="app"'
+          # HTTPS first (after certbot, port 80 only redirects/404s), then plain HTTP
+          { curl -fsSk https://127.0.0.1/ 2>/dev/null || curl -fsS http://127.0.0.1/; } | grep -q 'id="app"'
           echo "Active release: $RELEASE"
           EOF
