@@ -1,19 +1,22 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import HomeView from '../views/HomeView.vue'
-import CatalogView from '../views/CatalogView.vue'
-import ProductView from '../views/ProductView.vue'
-import CartView from '../views/CartView.vue'
-import CheckoutView from '../views/CheckoutView.vue'
-import AuthView from '../views/AuthView.vue'
-import AccountView from '../views/AccountView.vue'
-import AdminView from '../views/AdminView.vue'
-import AboutView from '../views/AboutView.vue'
-import InfoView from '../views/InfoView.vue'
-import ContactView from '../views/ContactView.vue'
-import SolutionView from '../views/SolutionView.vue'
-import ResourceView from '../views/ResourceView.vue'
-import SearchView from '../views/SearchView.vue'
+
+// Trang chủ tải ngay; các trang còn lại tách thành chunk riêng và chỉ tải khi người dùng mở,
+// để lần tải đầu không phải kéo toàn bộ ứng dụng (Admin, Checkout, Account... rất lớn).
+const CatalogView = () => import('../views/CatalogView.vue')
+const ProductView = () => import('../views/ProductView.vue')
+const CartView = () => import('../views/CartView.vue')
+const CheckoutView = () => import('../views/CheckoutView.vue')
+const AuthView = () => import('../views/AuthView.vue')
+const AccountView = () => import('../views/AccountView.vue')
+const AdminView = () => import('../views/AdminView.vue')
+const AboutView = () => import('../views/AboutView.vue')
+const InfoView = () => import('../views/InfoView.vue')
+const ContactView = () => import('../views/ContactView.vue')
+const SolutionView = () => import('../views/SolutionView.vue')
+const ResourceView = () => import('../views/ResourceView.vue')
+const SearchView = () => import('../views/SearchView.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -56,6 +59,33 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+// Sau mỗi lần deploy, release cũ trên VPS bị thay bằng release mới nên các chunk cũ không còn.
+// Tab đang mở từ trước sẽ lỗi khi mở một trang chưa từng tải → tải lại đúng trang đó để nhận
+// bản mới. Chỉ thử một lần (đánh dấu trong sessionStorage) để không lặp vô hạn nếu server lỗi thật.
+const CHUNK_RELOAD_KEY = 'dxtechs:chunk-reload'
+const CHUNK_ERROR_PATTERN =
+  /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS/i
+
+router.onError((error, to) => {
+  const message = error instanceof Error ? error.message : String(error)
+  if (!CHUNK_ERROR_PATTERN.test(message)) return
+  try {
+    if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, '1')
+  } catch {
+    // sessionStorage bị chặn: vẫn tải lại một lần
+  }
+  window.location.assign(to.fullPath)
+})
+
+router.afterEach(() => {
+  try {
+    sessionStorage.removeItem(CHUNK_RELOAD_KEY)
+  } catch {
+    // bỏ qua
+  }
 })
 
 export default router
