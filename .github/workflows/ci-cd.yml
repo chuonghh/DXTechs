@@ -1,0 +1,82 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build & type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build   # vue-tsc -b && vite build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
+
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+      APP_DIR: /var/www/dxtechs
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_deploy ~/.ssh/known_hosts
+
+      - name: Upload release
+        run: |
+          tar -czf dist.tgz -C dist .
+          scp -P "$VPS_PORT" -i ~/.ssh/id_deploy dist.tgz "$VPS_USER@$VPS_HOST:/tmp/dxtechs-dist.tgz"
+
+      - name: Activate release
+        run: |
+          ssh -p "$VPS_PORT" -i ~/.ssh/id_deploy "$VPS_USER@$VPS_HOST" \
+            "APP_DIR='$APP_DIR' RELEASE='$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}' bash -s" <<'EOF'
+          set -euo pipefail
+          dir="$APP_DIR/releases/$RELEASE"
+          mkdir -p "$dir"
+          tar -xzf /tmp/dxtechs-dist.tgz -C "$dir"
+          rm -f /tmp/dxtechs-dist.tgz
+          test -f "$dir/index.html"
+          ln -sfn "$dir" "$APP_DIR/current"
+          # keep the 5 newest releases for rollback
+          ls -1dt "$APP_DIR"/releases/* | tail -n +6 | xargs -r rm -rf
+          # HTTPS first (after certbot, port 80 only redirects/404s), then plain HTTP
+          { curl -fsSk https://127.0.0.1/ 2>/dev/null || curl -fsS http://127.0.0.1/; } | grep -q 'id="app"'
+          echo "Active release: $RELEASE"
+          EOF
