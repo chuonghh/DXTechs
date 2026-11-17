@@ -1,0 +1,12 @@
+# Chuẩn hóa xuống dòng LF trong repo, tránh lỗi CRLF khi thành viên dùng Windows
+# và khi file chạy trên VPS Linux / GitHub Actions.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
