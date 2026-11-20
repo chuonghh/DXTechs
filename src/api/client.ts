@@ -1,4 +1,5 @@
 // Lớp gọi API dùng chung cho toàn bộ client.
+// - Base URL: dev/preview '/api' (Vite proxy, cùng origin); production 'https://api.dxtechs.com/api'.
 // - Mọi request đi qua đây: một chỗ duy nhất để gắn base URL, timeout, header, xử lý lỗi
 //   (sau này: gắn access token, tự refresh khi 401).
 // - Chỉ dùng fetch có sẵn của trình duyệt, không thêm thư viện.
@@ -97,8 +98,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       ...init,
       headers: requestHeaders,
       body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
-      // Cùng domain: cookie (refresh token httpOnly ở Phase 2) tự đi kèm.
-      credentials: init.credentials ?? 'same-origin',
+      // API ở https://api.dxtechs.com — khác origin nhưng cùng site với https://dxtechs.com:
+      // 'include' để cookie phiên đăng nhập (httpOnly, SameSite=Strict, Phase 2) đi kèm request.
+      // Server chỉ cho phép đúng origin của web (CORS AllowCredentials), không dùng '*'.
+      credentials: init.credentials ?? 'include',
       signal: controller.signal,
     })
 
