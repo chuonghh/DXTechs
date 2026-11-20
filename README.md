@@ -18,12 +18,13 @@ npm run preview
 
 ## Kết nối API (backend `DxTech_server`)
 
-Client gọi API bằng đường dẫn tương đối `/api/...` ở mọi môi trường, nên không cần CORS:
+| Môi trường | `VITE_API_BASE_URL` | Cách tới ASP.NET Core |
+|---|---|---|
+| `npm run dev` / `npm run preview` | `/api` (`.env`) | Vite proxy → `API_PROXY_TARGET` trong `.env.development` (mặc định `http://localhost:5043`) — cùng origin, không cần CORS |
+| Production (`npm run build`) | `https://api.dxtechs.com/api` (`.env.production`) | Web ở `https://dxtechs.com` gọi sang subdomain API — khác origin, server bật CORS chỉ cho `https://dxtechs.com` |
 
-| Môi trường | Ai chuyển `/api/*` tới ASP.NET Core |
-|---|---|
-| `npm run dev` / `npm run preview` | Vite proxy → `API_PROXY_TARGET` trong `.env.development` (mặc định `http://localhost:5043`) |
-| Production (VPS) | Nginx → container API tại `127.0.0.1:8080` |
+Request gửi kèm `credentials: 'include'` để cookie đăng nhập (Phase 2) đi theo. Muốn build trỏ tới API khác:
+`VITE_API_BASE_URL=https://api-staging.example.com/api npm run build`.
 
 Chạy cùng backend khi dev:
 
@@ -51,7 +52,7 @@ try {
 
 Biến môi trường:
 
-- `.env`: `VITE_API_BASE_URL` (mặc định `/api`). Biến `VITE_*` được nhúng vào bundle gửi cho trình duyệt — **không đặt bí mật**.
+- `.env`: `VITE_API_BASE_URL=/api` cho dev/preview; `.env.production`: `https://api.dxtechs.com/api`. Biến `VITE_*` được nhúng vào bundle gửi cho trình duyệt — **không đặt bí mật**.
 - `.env.development`: `API_PROXY_TARGET`, chỉ dùng trong `vite.config.ts`. Ghi đè riêng trên máy bằng `.env.development.local` (không commit).
 
 ## Tách code theo trang
