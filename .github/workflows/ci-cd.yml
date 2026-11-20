@@ -57,6 +57,11 @@ jobs:
           done
           exit $missing
 
+      # Chỉ lấy thư mục script (ssh-retry.sh); bản build đến từ artifact của job build.
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/scripts
+
       - uses: actions/download-artifact@v5
         with:
           name: dist
@@ -71,16 +76,25 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_deploy ~/.ssh/known_hosts
+          # Không treo vô hạn khi VPS không phản hồi; phát hiện kết nối chết giữa chừng.
+          printf 'Host *\n  ConnectTimeout 20\n  ServerAliveInterval 15\n  ServerAliveCountMax 4\n' > ~/.ssh/config
+          chmod 600 ~/.ssh/config
 
+      # scp/ssh đi qua ssh_retry: lỗi kết nối thoáng qua (exit 255, ví dụ sshd MaxStartups ngắt
+      # "kex_exchange_identification: Connection reset by peer" — sự cố run #6 ngày 20/11/2026) được thử lại
+      # tối đa 4 lần (5s/15s/30s). Lỗi của script hoặc sai key/known_hosts thì KHÔNG thử lại.
       - name: Upload release
         run: |
+          source .github/scripts/ssh-retry.sh
           tar -czf dist.tgz -C dist .
-          scp -P "$VPS_PORT" -i ~/.ssh/id_deploy dist.tgz "$VPS_USER@$VPS_HOST:/tmp/dxtechs-dist.tgz"
+          ssh_retry scp -P "$VPS_PORT" -i ~/.ssh/id_deploy dist.tgz "$VPS_USER@$VPS_HOST:/tmp/dxtechs-dist.tgz"
 
       - name: Activate release
         run: |
-          ssh -p "$VPS_PORT" -i ~/.ssh/id_deploy "$VPS_USER@$VPS_HOST" \
-            "APP_DIR='$APP_DIR' RELEASE='$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}' bash -s" <<'EOF'
+          source .github/scripts/ssh-retry.sh
+          # Dòng đầu in "[remote] started": từ đây trở đi lỗi KHÔNG được thử lại (release có thể đã kích hoạt một phần).
+          cat > remote-activate.sh <<'EOF'
+          echo "[remote] started"
           set -euo pipefail
           dir="$APP_DIR/releases/$RELEASE"
           mkdir -p "$dir"
@@ -94,3 +108,7 @@ jobs:
           { curl -fsSk https://127.0.0.1/ 2>/dev/null || curl -fsS http://127.0.0.1/; } | grep -q 'id="app"'
           echo "Active release: $RELEASE"
           EOF
+          # RELEASE tính MỘT lần trên runner: thử lại vẫn dùng đúng tên thư mục release.
+          RELEASE="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
+          ssh_retry --stdin remote-activate.sh ssh -p "$VPS_PORT" -i ~/.ssh/id_deploy "$VPS_USER@$VPS_HOST" \
+            "APP_DIR='$APP_DIR' RELEASE='$RELEASE' bash -s"
