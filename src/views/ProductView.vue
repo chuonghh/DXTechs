@@ -5,18 +5,66 @@ import LucianButton from '../components/LucianButton.vue'
 import LucianCopyButton from '../components/LucianCopyButton.vue'
 import LucianSegmented from '../components/LucianSegmented.vue'
 import ProductCard from '../components/ProductCard.vue'
-import { formatPrice, products } from '../data/products.ts'
+import { formatPrice, type Product } from '../data/products.ts'
 import { useShopStore } from '../stores/shop.ts'
+import { ApiError } from '../api'
+import { detailToLegacyProduct, getCategoryTree, getProduct, listItemToLegacyProduct, listProducts, rootSlugMap } from '../api/catalog'
 
 const route = useRoute()
 const router = useRouter()
 const shop = useShopStore()
 const imageFailed = ref(false)
 
-const product = computed(() => {
-  const slug = String(route.params.slug || '')
-  return shop.productList?.find((item) => item.slug === slug) || products.find((item) => item.slug === slug)
-})
+// Sản phẩm đọc từ API (PR-6). Ẩn/đã xoá/không tồn tại ⇒ API trả 404 ⇒ hiện trạng thái "không tìm thấy".
+const product = ref<Product | null>(null)
+const relatedProducts = ref<Product[]>([])
+const isLoading = ref(true)
+const loadError = ref('')
+let loadController: AbortController | undefined
+
+async function loadProduct(slug: string) {
+  loadController?.abort()
+  const controller = new AbortController()
+  loadController = controller
+  isLoading.value = true
+  loadError.value = ''
+  try {
+    const detail = await getProduct(slug, controller.signal)
+    product.value = detailToLegacyProduct(detail)
+    void loadRelated(detail.breadcrumb[0]?.slug, detail.slug, controller.signal)
+  } catch (error) {
+    if (controller.signal.aborted) return
+    product.value = null
+    relatedProducts.value = []
+    if (!(error instanceof ApiError && error.status === 404)) {
+      loadError.value = error instanceof ApiError ? error.message : 'Không tải được thông tin sản phẩm.'
+    }
+  } finally {
+    if (loadController === controller) {
+      isLoading.value = false
+      loadController = undefined
+    }
+  }
+}
+
+// Sản phẩm cùng danh mục gốc (tối đa 12). Lỗi ở đây không làm hỏng trang chi tiết — chỉ ẩn khối liên quan.
+async function loadRelated(rootSlug: string | undefined, currentSlug: string, signal: AbortSignal) {
+  if (!rootSlug) return
+  try {
+    const [tree, page] = await Promise.all([getCategoryTree(signal), listProducts({ category: rootSlug, pageSize: 13 }, signal)])
+    const roots = rootSlugMap(tree)
+    relatedProducts.value = page.items
+      .filter((item) => item.slug !== currentSlug)
+      .slice(0, 12)
+      .map((item) => listItemToLegacyProduct(item, roots))
+  } catch {
+    if (!signal.aborted) relatedProducts.value = []
+  }
+}
+
+watch(() => String(route.params.slug || ''), (slug) => {
+  if (slug) void loadProduct(slug)
+}, { immediate: true })
 
 const quantity = ref(1)
 
@@ -170,7 +218,6 @@ function buyNow() {
 }
 
 // Related Products Slideshow
-const relatedProducts = computed(() => (shop.productList || products).filter((item) => item.category === product.value?.category && item.id !== product.value?.id))
 const relatedProductsPerPage = 3
 const relatedPage = ref(0)
 const relatedSlideDirection = ref<'next' | 'previous'>('next')
@@ -219,12 +266,31 @@ watch(() => product.value?.id, () => {
   startRelatedSlideshow()
 })
 
+watch(relatedPageCount, startRelatedSlideshow)
+
 onMounted(startRelatedSlideshow)
-onUnmounted(stopRelatedSlideshow)
+onUnmounted(() => {
+  stopRelatedSlideshow()
+  loadController?.abort()
+})
 </script>
 
 <template>
-  <div v-if="product" class="content-wrap product-detail-awesome">
+  <div v-if="isLoading && !product" class="content-wrap not-found-state" aria-busy="true">
+    <div class="not-found-card-3d">
+      <h2>Đang tải sản phẩm…</h2>
+    </div>
+  </div>
+
+  <div v-else-if="loadError" class="content-wrap not-found-state" role="alert">
+    <div class="not-found-card-3d">
+      <h2>Chưa tải được thông tin sản phẩm</h2>
+      <p>{{ loadError }}</p>
+      <button type="button" class="button button-primary" @click="loadProduct(String(route.params.slug || ''))">Thử lại</button>
+    </div>
+  </div>
+
+  <div v-else-if="product" class="content-wrap product-detail-awesome">
     <!-- Breadcrumbs -->
     <nav class="breadcrumbs" aria-label="Đường dẫn trang">
       <RouterLink to="/">Trang chủ</RouterLink>

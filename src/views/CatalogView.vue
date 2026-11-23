@@ -3,12 +3,43 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PageIntro from '../components/PageIntro.vue'
 import ProductCard from '../components/ProductCard.vue'
-import { categories, products } from '../data/products.ts'
-import { useShopStore } from '../stores/shop'
+import {
+  getCategoryTree,
+  listItemToLegacyProduct,
+  listProducts,
+  platformFromLabel,
+  rootSlugMap,
+  type CategoryNode,
+  type ProductQuery,
+} from '../api/catalog'
+import { ApiError } from '../api'
+import type { Product } from '../data/products'
 
-const shop = useShopStore()
-const activeProductList = computed(() => shop.productList?.length ? shop.productList : products)
 const route = useRoute()
+
+// Dữ liệu từ API (PR-6): cây danh mục + danh sách sản phẩm theo bộ lọc. Danh mục, danh mục con, hệ điều hành,
+// mức giá, từ khoá lọc ở SERVER; "nhu cầu" và "loại giấy phép" lọc trên tập đã tải (tối đa 100 — catalog nhỏ,
+// giao diện chưa có phân trang).
+const PAGE_SIZE = 100
+const categoryTree = ref<CategoryNode[]>([])
+const activeProductList = ref<Product[]>([])
+const isLoading = ref(true)
+const loadError = ref('')
+let productsController: AbortController | undefined
+
+const categories = computed(() =>
+  categoryTree.value.map((node) => ({
+    id: node.slug,
+    name: node.name,
+    description: node.description ?? '',
+    subcategories: node.children.map((child) => child.name),
+  })),
+)
+const subcategorySlugByName = computed(() => {
+  const map = new Map<string, string>()
+  categoryTree.value.forEach((root) => root.children.forEach((child) => map.set(child.name, child.slug)))
+  return map
+})
 
 // 1. Reactive state quản lý danh mục con đang chọn ('all', 'Văn phòng', 'Thiết kế', 'Bảo mật', 'Lập trình'...)
 const activeCategory = ref<string>(
@@ -43,7 +74,7 @@ const isSoftwarePage = computed(() => route.name === 'software')
 // Danh mục chính hiện tại
 const currentMainCategory = computed(() => {
   if (selectedMainCategory.value === 'all') return null
-  return categories.find((item) => item.id === selectedMainCategory.value)
+  return categories.value.find((item) => item.id === selectedMainCategory.value)
 })
 
 const isDomainCategory = computed(() => selectedMainCategory.value === 'domain')
@@ -51,7 +82,7 @@ const isDomainCategory = computed(() => selectedMainCategory.value === 'domain')
 // Danh sách danh mục con hiển thị theo ngữ cảnh
 const visibleSubcategories = computed(() => {
   if (isSoftwarePage.value) {
-    return categories.find((item) => item.id === 'software')?.subcategories ?? []
+    return categories.value.find((item) => item.id === 'software')?.subcategories ?? []
   }
   if (currentMainCategory.value) {
     return currentMainCategory.value.subcategories
@@ -238,35 +269,70 @@ async function checkDomain() {
   }
 }
 
-// 2. Computed filteredProducts tự động lọc danh sách sản phẩm dựa vào activeCategory mà không cần chuyển trang
-const filteredProducts = computed(() => {
-  const query = searchQuery.value.toLocaleLowerCase('vi')
-  return activeProductList.value.filter((product) => {
-    // Nếu ở trang phần mềm thì chỉ lấy software
-    const matchesPage = isSoftwarePage.value ? product.category === 'software' : true
+// Bộ lọc gửi lên server. Danh mục con được chọn thắng danh mục chính; trang /phan-mem luôn giới hạn trong "software".
+function buildQuery(): ProductQuery {
+  const query: ProductQuery = { pageSize: PAGE_SIZE }
+  const subcategorySlug = activeCategory.value !== 'all' ? subcategorySlugByName.value.get(activeCategory.value) : undefined
+  if (subcategorySlug) query.category = subcategorySlug
+  else if (isSoftwarePage.value) query.category = 'software'
+  else if (selectedMainCategory.value !== 'all') query.category = selectedMainCategory.value
 
-    // Lọc theo danh mục chính
-    const matchesCategory =
-      selectedMainCategory.value === 'all' || !selectedMainCategory.value
-        ? true
-        : product.category === selectedMainCategory.value
+  const platform = operatingSystem.value ? platformFromLabel(operatingSystem.value) : undefined
+  if (platform) query.platform = platform
+  if (maxPrice.value) query.maxPrice = Number(maxPrice.value)
+  if (searchQuery.value.trim()) query.q = searchQuery.value.trim()
+  return query
+}
 
-    // Lọc theo danh mục con (activeCategory)
-    const matchesSubcategory =
-      activeCategory.value === 'all' || !activeCategory.value
-        ? true
-        : product.categoryLabel === activeCategory.value
+async function loadProducts() {
+  productsController?.abort()
+  const controller = new AbortController()
+  productsController = controller
+  isLoading.value = true
+  loadError.value = ''
+  try {
+    const roots = rootSlugMap(categoryTree.value)
+    const page = await listProducts(buildQuery(), controller.signal)
+    activeProductList.value = page.items.map((item) => listItemToLegacyProduct(item, roots))
+  } catch (error) {
+    if (controller.signal.aborted) return
+    activeProductList.value = []
+    // Danh mục trong URL không còn tồn tại (đã ẩn/đổi tên) ⇒ hiện trạng thái rỗng thay vì báo lỗi hệ thống.
+    if (error instanceof ApiError && error.problem?.code === 'catalog.category_not_found') return
+    loadError.value = error instanceof ApiError ? error.message : 'Không tải được danh sách sản phẩm.'
+  } finally {
+    if (productsController === controller) {
+      isLoading.value = false
+      productsController = undefined
+    }
+  }
+}
 
-    const matchesSearch =
-      !query || `${product.name} ${product.description} ${product.categoryLabel}`.toLocaleLowerCase('vi').includes(query)
-    const matchesOs = !operatingSystem.value || product.os.includes(operatingSystem.value)
+async function loadCatalog() {
+  try {
+    categoryTree.value = await getCategoryTree()
+  } catch (error) {
+    // Không có cây danh mục vẫn hiển thị được sản phẩm (chỉ thiếu tab danh mục) — không chặn trang.
+    loadError.value = error instanceof ApiError ? error.message : 'Không tải được danh mục.'
+  }
+  await loadProducts()
+}
+
+onMounted(loadCatalog)
+onUnmounted(() => productsController?.abort())
+
+watch([activeCategory, selectedMainCategory, operatingSystem, maxPrice, searchQuery, () => route.path], () => {
+  if (categoryTree.value.length) void loadProducts()
+})
+
+// 2. Lọc phần còn lại trên tập đã tải từ server: nhu cầu (danh mục con) và loại giấy phép.
+const filteredProducts = computed(() =>
+  activeProductList.value.filter((product) => {
     const matchesNeed = !need.value || product.need === need.value
     const matchesLicense = !license.value || product.license === license.value
-    const matchesPrice = !maxPrice.value || product.price <= Number(maxPrice.value)
-
-    return matchesPage && matchesCategory && matchesSubcategory && matchesSearch && matchesOs && matchesNeed && matchesLicense && matchesPrice
-  })
-})
+    return matchesNeed && matchesLicense
+  }),
+)
 
 const needs = ['Văn phòng', 'Thiết kế', 'Bảo mật', 'Lập trình', 'Website', 'Thương hiệu', 'Lưu trữ', 'Sao lưu']
 
@@ -329,14 +395,14 @@ const priceOptions = [
 ]
 
 const availableNeeds = computed(() => {
-  const pool = isSoftwarePage.value ? activeProductList.value.filter((p) => p.category === 'software') : activeProductList.value
+  const pool = activeProductList.value
   const poolNeeds = new Set(pool.map((p) => p.need))
   const filtered = needs.filter((n) => poolNeeds.has(n))
   return filtered.length > 0 ? filtered : needs
 })
 
 const availableLicenses = computed(() => {
-  const pool = isSoftwarePage.value ? activeProductList.value.filter((p) => p.category === 'software') : activeProductList.value
+  const pool = activeProductList.value
   return [...new Set(pool.map((product) => product.license))]
 })
 </script>
@@ -639,10 +705,20 @@ const availableLicenses = computed(() => {
         </div>
 
         <div class="results-bar">
-          <span>{{ filteredProducts.length }} sản phẩm phù hợp</span>
+          <span v-if="isLoading" aria-live="polite">Đang tải sản phẩm…</span>
+          <span v-else aria-live="polite">{{ filteredProducts.length }} sản phẩm phù hợp</span>
           <span>Giá đã bao gồm thông tin thời hạn</span>
         </div>
-        <div v-if="filteredProducts.length" class="product-grid">
+        <div v-if="isLoading && !filteredProducts.length" class="product-grid" aria-busy="true">
+          <div v-for="n in 6" :key="n" class="product-card product-card-skeleton" aria-hidden="true" />
+        </div>
+        <div v-else-if="loadError" class="empty-state" role="alert">
+          <div class="empty-icon">!</div>
+          <h2>Chưa tải được danh sách sản phẩm</h2>
+          <p>{{ loadError }}</p>
+          <button type="button" class="button button-primary" @click="loadCatalog">Thử lại</button>
+        </div>
+        <div v-else-if="filteredProducts.length" class="product-grid" :aria-busy="isLoading">
           <ProductCard v-for="product in filteredProducts" :key="product.id" :product="product" />
         </div>
         <div v-else class="empty-state">
@@ -659,3 +735,20 @@ const availableLicenses = computed(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.product-card-skeleton {
+  min-height: 360px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.12) 25%, rgba(148, 163, 184, 0.24) 37%, rgba(148, 163, 184, 0.12) 63%);
+  background-size: 400% 100%;
+  animation: catalog-skeleton 1.4s ease infinite;
+}
+@keyframes catalog-skeleton {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-card-skeleton { animation: none; }
+}
+</style>
