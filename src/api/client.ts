@@ -1,7 +1,7 @@
 // Lớp gọi API dùng chung cho toàn bộ client.
 // - Base URL: dev/preview '/api' (Vite proxy, cùng origin); production 'https://api.dxtechs.com/api'.
-// - Mọi request đi qua đây: một chỗ duy nhất để gắn base URL, timeout, header, xử lý lỗi
-//   (sau này: gắn access token, tự refresh khi 401).
+// - Mọi request đi qua đây: một chỗ duy nhất để gắn base URL, timeout, header, xử lý lỗi,
+//   gắn access token (Bearer) và tự làm mới phiên một lần khi server báo token hết hạn (401) — xem api/auth.ts.
 // - Chỉ dùng fetch có sẵn của trình duyệt, không thêm thư viện.
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/+$/, '')
@@ -46,6 +46,21 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
   /** Query string; giá trị null/undefined bị bỏ qua. */
   query?: Record<string, QueryValue>
   timeoutMs?: number
+  /** Không gắn Bearer và không tự refresh (dùng cho chính các endpoint /auth/*). */
+  skipAuth?: boolean
+}
+
+/** Do api/auth.ts đăng ký — tránh import vòng giữa client.ts và auth.ts. */
+interface AuthHooks {
+  getAccessToken: () => string | null
+  /** true = đã có access token mới, gửi lại request được. */
+  refresh: () => Promise<boolean>
+}
+
+let authHooks: AuthHooks | undefined
+
+export function setAuthHooks(hooks: AuthHooks) {
+  authHooks = hooks
 }
 
 function buildUrl(path: string, query?: Record<string, QueryValue>): string {
@@ -73,7 +88,21 @@ async function toApiError(response: Response): Promise<ApiError> {
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, query, timeoutMs = DEFAULT_TIMEOUT_MS, headers, signal, ...init } = options
+  try {
+    return await send<T>(path, options)
+  } catch (error) {
+    // Access token hết hạn/không hợp lệ ⇒ làm mới phiên một lần rồi gửi lại. Không lặp vô hạn: lần gửi lại có skipAuth=false
+    // nhưng nếu vẫn 401 thì lỗi được trả thẳng cho nơi gọi.
+    const hadToken = !options.skipAuth && !!authHooks?.getAccessToken()
+    if (error instanceof ApiError && error.status === 401 && hadToken && authHooks && (await authHooks.refresh())) {
+      return send<T>(path, options)
+    }
+    throw error
+  }
+}
+
+async function send<T>(path: string, options: RequestOptions): Promise<T> {
+  const { body, query, timeoutMs = DEFAULT_TIMEOUT_MS, headers, signal, skipAuth, ...init } = options
 
   // Gộp timeout với signal của nơi gọi (ví dụ huỷ request khi rời trang).
   const controller = new AbortController()
@@ -92,6 +121,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   if (body !== undefined && !isFormData && !requestHeaders.has('Content-Type')) {
     requestHeaders.set('Content-Type', 'application/json')
   }
+  const token = skipAuth ? null : authHooks?.getAccessToken()
+  if (token && !requestHeaders.has('Authorization')) requestHeaders.set('Authorization', `Bearer ${token}`)
 
   try {
     const response = await fetch(buildUrl(path, query), {

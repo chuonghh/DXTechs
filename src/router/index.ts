@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import HomeView from '../views/HomeView.vue'
+import { useAuthStore } from '../stores/auth'
 
 // Trang chủ tải ngay; các trang còn lại tách thành chunk riêng và chỉ tải khi người dùng mở,
 // để lần tải đầu không phải kéo toàn bộ ứng dụng (Admin, Checkout, Account... rất lớn).
@@ -30,6 +31,7 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: AdminView,
+      meta: { requiresAdmin: true },
     },
     {
       path: '/',
@@ -46,10 +48,10 @@ const router = createRouter({
         { path: 'bang-gia', redirect: '/du-an' },
         { path: 'gio-hang', name: 'cart', component: CartView },
         { path: 'thanh-toan', name: 'checkout', component: CheckoutView },
-        { path: 'dang-nhap', name: 'login', component: AuthView },
-        { path: 'dang-ky', name: 'register', component: AuthView },
-        { path: 'tai-khoan', name: 'account', component: AccountView },
-        { path: 'don-hang', name: 'orders', component: AccountView },
+        { path: 'dang-nhap', name: 'login', component: AuthView, meta: { guestOnly: true } },
+        { path: 'dang-ky', name: 'register', component: AuthView, meta: { guestOnly: true } },
+        { path: 'tai-khoan', name: 'account', component: AccountView, meta: { requiresAuth: true } },
+        { path: 'don-hang', name: 'orders', component: AccountView, meta: { requiresAuth: true } },
         { path: 'gioi-thieu', name: 'about', component: AboutView },
         { path: 'chinh-sach', name: 'policies', component: InfoView },
         { path: 'tin-tuc/:slug?', name: 'news', component: InfoView },
@@ -59,6 +61,23 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+// Route guard (ADR-012 §5): chỉ để giao diện đúng — quyền thật do server kiểm tra (API admin trả 403 với customer).
+// Chờ khôi phục phiên từ cookie (lần đầu mở trang) rồi mới quyết định, tránh đá người đã đăng nhập về trang login.
+router.beforeEach(async (to) => {
+  const auth = useAuthStore()
+  await auth.init()
+  if ((to.meta.requiresAuth || to.meta.requiresAdmin) && !auth.isAuthenticated) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'account', query: { denied: 'admin' } }
+  }
+  if (to.meta.guestOnly && auth.isAuthenticated) {
+    return { name: 'account' }
+  }
+  return true
 })
 
 // Sau mỗi lần deploy, release cũ trên VPS bị thay bằng release mới nên các chunk cũ không còn.
