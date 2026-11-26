@@ -38,7 +38,7 @@ const pageEntries: SearchResult[] = [
   { id: 'page-news', title: 'Tin tức & hướng dẫn', description: 'Hướng dẫn cài đặt, kích hoạt, bảo mật và sử dụng dịch vụ số.', category: 'Tài Nguyên', path: '/tai-nguyen/goc-nhin/tin-tuc', kind: 'resource' },
   { id: 'home-slide-1', title: 'Công nghệ tốt. Khởi đầu an tâm.', description: 'Phần mềm bản quyền và dịch vụ số thiết yếu, nguồn gốc rõ ràng, hỗ trợ tận tình.', category: 'Trang chủ', path: '/', kind: 'page' },
   { id: 'home-slide-2', title: 'Vận hành đồng bộ. Tăng trưởng vững vàng.', description: 'Hệ thống ERP, MES, MRP cho doanh nghiệp; phân tích quy trình, tích hợp theo nhu cầu và đồng hành triển khai.', category: 'Trang chủ · ERP · MES · MRP', path: '/giai-phap/tu-van-trien-khai', kind: 'solution' },
-  { id: 'home-slide-3', title: 'AI đồng hành. Quy trình tự động.', description: 'AI Automation cho doanh nghiệp, tự động hóa công việc lặp lại và kết nối công cụ.', category: 'Trang chủ · AI Automation', path: '/giai-phap/dich-vu/tri-tue-nhan-tao-ai-va-phan-tich-du-lieu', kind: 'solution' },
+  { id: 'home-slide-3', title: 'AI đồng hành. Tự động hóa quy trình.', description: 'Ứng dụng AI thông minh cho doanh nghiệp, tự động hóa tương tác và nâng cao năng suất.', category: 'Trang chủ · AI', path: '/giai-phap/dao-tao/ai-co-ban', kind: 'solution' },
 ]
 
 const categoryEntries: SearchResult[] = categories.map((category) => ({

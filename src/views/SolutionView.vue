@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PageIntro from '../components/PageIntro.vue'
+import CategoryCarousel, { type CategoryCarouselItem } from '../components/CategoryCarousel.vue'
 import {
   solutionCategories,
   solutionCategoryPath,
@@ -167,23 +168,6 @@ const serviceLandingThemes = {
     badge: 'Thiết kế lấy người dùng làm tâm',
     features: ['Tìm hiểu hành vi và nhu cầu của từng nhóm người dùng', 'Xây dựng luồng, wireframe và prototype để kiểm chứng', 'Hoàn thiện UI đồng bộ thương hiệu trên mọi thiết bị'],
   },
-  'Trí tuệ nhân tạo (AI) và phân tích dữ liệu': {
-    key: 'service-ai-data',
-    image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=85',
-    images: [
-      'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1000&q=85',
-      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=85',
-      'https://images.unsplash.com/photo-1676299081847-824916de030a?auto=format&fit=crop&w=1000&q=85',
-    ],
-    description: 'Khai thác dữ liệu và ứng dụng AI đúng điểm cần thiết để tự động hóa công việc, tăng khả năng phân tích và hỗ trợ quyết định.',
-    sceneLabel: 'AI & DATA LAB',
-    sceneTitle: 'Dữ liệu mở ra cách làm mới',
-    overviewTitle: 'Đưa AI và dữ liệu vào đúng điểm cần thiết',
-    overviewDescription: 'Bắt đầu từ bài toán, nguồn dữ liệu và mức độ sẵn sàng để chọn giải pháp có thể thử nghiệm và đo lường.',
-    metrics: [{ label: 'Dữ liệu', value: 'Tập trung' }, { label: 'AI', value: 'Đúng quy trình' }, { label: 'Quyết định', value: 'Có cơ sở' }],
-    badge: 'AI gắn với nghiệp vụ',
-    features: ['Xác định bài toán và đánh giá dữ liệu sẵn có', 'Xây trợ lý, chatbot hoặc tự động hóa có kiểm soát', 'Đưa dữ liệu vào dashboard và hoạt động ra quyết định'],
-  },
   'Tư vấn chuyển đổi số': {
     key: 'service-digital',
     image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=85',
@@ -266,21 +250,6 @@ const serviceDeliveryDetails = {
     ],
     audience: 'Đội ngũ chuẩn bị ra mắt sản phẩm số, cần cải thiện luồng sử dụng hiện tại hoặc muốn đồng bộ giao diện trên nhiều nền tảng.',
     outcomes: ['Sơ đồ hành trình và luồng thao tác', 'Wireframe, prototype và bộ giao diện đã duyệt', 'Quy chuẩn thành phần và tài liệu bàn giao cho đội ngũ phát triển'],
-  },
-  'Trí tuệ nhân tạo (AI) và phân tích dữ liệu': {
-    scope: [
-      { title: 'Đánh giá bài toán và dữ liệu', description: 'Chọn quy trình cần cải thiện, kiểm tra nguồn và chất lượng dữ liệu cùng các yêu cầu bảo mật trước khi chọn công nghệ.' },
-      { title: 'Thiết kế giải pháp AI', description: 'Xác định cách AI tham gia vào quy trình, mức độ tự động hóa, điểm cần con người xác nhận và tiêu chí đánh giá.' },
-      { title: 'Tích hợp và thử nghiệm', description: 'Kết nối mô hình, chatbot hoặc dịch vụ AI với dữ liệu được phép; thử nghiệm trên các tình huống đại diện.' },
-      { title: 'Phân tích và trực quan hóa', description: 'Tổ chức chỉ số, báo cáo và dashboard theo mục tiêu để đội ngũ theo dõi xu hướng và ra quyết định.' },
-    ],
-    workflow: [
-      { title: 'Chọn bài toán ưu tiên', description: 'Làm rõ giá trị kỳ vọng, người dùng, dữ liệu đầu vào và rủi ro cần kiểm soát.' },
-      { title: 'Làm thử có giới hạn', description: 'Xây dựng mẫu thử hoặc dashboard ban đầu, đánh giá chất lượng trên dữ liệu và tình huống thực tế.' },
-      { title: 'Tích hợp và theo dõi', description: 'Mở rộng theo kết quả được xác nhận; thống nhất phân quyền, giám sát và cách xử lý ngoại lệ.' },
-    ],
-    audience: 'Doanh nghiệp có quy trình lặp lại, dữ liệu cần khai thác hoặc nhu cầu thử nghiệm chatbot, trợ lý AI, tự động hóa và báo cáo phân tích.',
-    outcomes: ['Đề xuất bài toán, dữ liệu và tiêu chí đánh giá', 'Nguyên mẫu AI, luồng tự động hoặc dashboard theo phạm vi', 'Tài liệu tích hợp, giới hạn sử dụng và phương án theo dõi'],
   },
   'Tư vấn chuyển đổi số': {
     scope: [
@@ -444,6 +413,81 @@ const isWebsiteDevelopmentPage = computed(() => solutionItem.value?.startsWith('
 const isWebsiteContentPage = computed(() => solutionItem.value?.startsWith('Quản trị nội dung và cập nhật website'))
 const isWebsiteAnalyticsPage = computed(() => solutionItem.value?.startsWith('Theo dõi hiệu suất website và báo cáo hoạt động'))
 const isTechnicalSeoPage = computed(() => solutionItem.value?.startsWith('Tối ưu SEO kỹ thuật và trải nghiệm trên công cụ tìm kiếm'))
+const isAiBasicPage = computed(() => subcategory.value?.name === 'AI Cơ Bản')
+
+export interface AiServicePackage {
+  id: string
+  name: string
+  badge?: string
+  isFeatured?: boolean
+  price: string
+  unit: string
+  description: string
+  highlights: string[]
+  features: string[]
+  ctaText: string
+}
+
+const fanpageAiPackages: AiServicePackage[] = [
+  {
+    id: 'fanpage-starter',
+    name: 'Khởi Động Fanpage AI',
+    badge: 'TIẾT KIỆM',
+    isFeatured: false,
+    price: '1.990.000',
+    unit: 'tháng',
+    description: 'Tự động hóa phản hồi cơ bản, giữ chân khách hàng 24/7 và chống trôi tin nhắn.',
+    highlights: ['Trực Fanpage 24/7', 'Phản hồi tức thì < 3s', 'Setup trong 48h'],
+    features: [
+      'Tự động phản hồi bình luận (comment) & tin nhắn (inbox) 24/7',
+      'AI học kiến thức sản phẩm, dịch vụ và bảng giá cơ bản từ tài liệu của bạn',
+      'Kịch bản chào mừng, phân luồng nhu cầu và thu thập SĐT / Email',
+      'Tự động ẩn bình luận chứa số điện thoại chống đối thủ cướp khách',
+      'Bàn giao kịch bản và hướng dẫn nhân sự vận hành dễ dàng trong 48 giờ',
+    ],
+    ctaText: 'Tư vấn gói Khởi Động',
+  },
+  {
+    id: 'fanpage-pro',
+    name: 'Fanpage AI Tự Động & Chốt Đơn',
+    badge: 'ĐƯỢC CHỌN NHIỀU NHẤT',
+    isFeatured: true,
+    price: '4.500.000',
+    unit: 'tháng',
+    description: 'Trợ lý AI thông minh xử lý ngữ cảnh sâu, tư vấn cá nhân hóa và hỗ trợ chốt đơn tự động.',
+    highlights: ['AI NLP hiểu ngữ cảnh', 'Lên lịch bài viết tự động', 'Tối ưu chuyển đổi'],
+    features: [
+      'Bao gồm toàn bộ tính năng của gói Khởi Động',
+      'AI Chatbot NLP thông minh xử lý từ chối, giải đáp thắc mắc chuyên sâu',
+      'Gợi ý sản phẩm thông minh và tự động gửi catalog hình ảnh kèm báo giá',
+      'Tự động gắn thẻ (Tags) khách hàng và phân loại phễu bán hàng',
+      'Tự động lên ý tưởng và lập lịch đăng bài Fanpage chuẩn SEO mạng xã hội',
+      'Phân quyền nhân viên, chuyển tiếp hội thoại mượt mà khi cần chuyên viên tư vấn',
+      'Báo cáo phân tích hiệu suất hội thoại, tỷ lệ phản hồi và khách tiềm năng hàng tuần',
+    ],
+    ctaText: 'Tư vấn gói Chốt Đơn',
+  },
+  {
+    id: 'fanpage-enterprise',
+    name: 'Fanpage AI Đa Kênh & Tùy Biến',
+    badge: 'DOANH NGHIỆP',
+    isFeatured: false,
+    price: '8.900.000',
+    unit: 'tháng',
+    description: 'Hệ thống AI đa Fanpage đồng bộ, tích hợp sâu vào CRM/ERP và kịch bản nghiệp vụ độc quyền.',
+    highlights: ['Đa kênh / Đa Fanpage', 'Tích hợp CRM/ERP', 'Kỹ sư AI đồng hành 1-1'],
+    features: [
+      'Bao gồm toàn bộ tính năng của gói Tự Động & Chốt Đơn',
+      'Quản lý tập trung đồng bộ không giới hạn Fanpage, Zalo OA & Website Chat',
+      'Tích hợp 2 chiều API với hệ thống ERP / CRM / Kho vận sẵn có của doanh nghiệp',
+      'Kịch bản AI Re-marketing tự động chăm sóc và kích hoạt lại khách hàng cũ',
+      'AI tạo hình ảnh sản phẩm và nội dung bài viết theo đúng phong cách nhận diện',
+      'Cam kết SLA phản hồi kỹ thuật ưu tiên 24/7',
+      'Đội ngũ kỹ sư DXTechs đồng hành tinh chỉnh prompt và tối ưu hóa định kỳ',
+    ],
+    ctaText: 'Tư vấn gói Doanh Nghiệp',
+  },
+]
 const websiteDevelopmentPackages = [
   {
     name: 'Gói 1',
@@ -737,6 +781,42 @@ const pageDescription = computed(() => {
 function contactPath(service: string, packageName?: string) {
   return { name: 'contact', query: { service, ...(packageName ? { package: packageName } : {}) } }
 }
+
+const categorySubcategoryCarouselItems = computed<CategoryCarouselItem[]>(() => {
+  if (!category.value) return []
+  return category.value.subcategories.map((sub, index) => {
+    let img = imageSet[(pageIndex.value + index) % imageSet.length]
+    if (category.value?.name === 'Đào Tạo') {
+      const theme = trainingLandingThemes[sub.name as keyof typeof trainingLandingThemes]
+      if (theme?.image) img = theme.image
+    } else if (implementationLandingThemes[sub.name as keyof typeof implementationLandingThemes]) {
+      img = implementationLandingThemes[sub.name as keyof typeof implementationLandingThemes].image
+    }
+    return {
+      id: sub.name,
+      title: sub.name,
+      eyebrow: category.value?.name || 'Giải pháp',
+      description: sub.description || (sub.items && sub.items[0]) || `Khám phá giải pháp ${sub.name.toLowerCase()} phù hợp với quy trình của bạn.`,
+      image: img,
+      imageAlt: `Hình minh họa ${sub.name}`,
+      to: solutionSubcategoryPath(category.value!, sub),
+      ctaText: 'Khám phá ngay',
+    }
+  })
+})
+
+const relatedCategoriesCarouselItems = computed<CategoryCarouselItem[]>(() => {
+  return solutionCategories.map((cat, index) => ({
+    id: cat.name,
+    title: cat.name,
+    eyebrow: 'Danh mục giải pháp',
+    description: cat.description || 'Khám phá các giải pháp công nghệ chuyên sâu từ DXTechs.',
+    image: cat.image || imageSet[index % imageSet.length],
+    imageAlt: `Danh mục ${cat.name}`,
+    to: solutionCategoryPath(cat),
+    ctaText: 'Khám phá ngay',
+  }))
+})
 </script>
 
 <template>
@@ -756,7 +836,7 @@ function contactPath(service: string, packageName?: string) {
       ]"
     >
       <div class="solution-hero-copy">
-        <span class="eyebrow">DXTECHS · {{ category.name.toLocaleUpperCase('vi') }}</span>
+        <span class="eyebrow">DXTechs · {{ category.name }}</span>
         <h1>{{ pageTitle }}</h1>
         <p>{{ pageDescription }}</p>
         <div class="solution-hero-actions">
@@ -806,7 +886,7 @@ function contactPath(service: string, packageName?: string) {
       :class="serviceLandingTheme ? ['service-landing-overview', `overview-${serviceLandingTheme.key}`] : ''"
     >
       <div class="implementation-overview-heading">
-        <span class="eyebrow">GIẢI PHÁP THEO LĨNH VỰC</span>
+        <span class="eyebrow">Giải pháp theo lĩnh vực</span>
         <h2>{{ implementationOverviewTitle }}</h2>
         <p>{{ implementationOverviewDescription }}</p>
       </div>
@@ -820,7 +900,7 @@ function contactPath(service: string, packageName?: string) {
     <section v-if="serviceLandingTheme && serviceDeliveryDetail && !isItemPage" class="service-delivery-section">
       <div class="section-heading">
         <div>
-          <span class="eyebrow">PHẠM VI DỊCH VỤ</span>
+          <span class="eyebrow">Phạm vi dịch vụ</span>
           <h2>Các hạng mục được triển khai cụ thể</h2>
           <p>Phạm vi được lựa chọn theo nhu cầu và ưu tiên của doanh nghiệp; đầu ra được thống nhất trước khi bắt đầu.</p>
         </div>
@@ -834,7 +914,7 @@ function contactPath(service: string, packageName?: string) {
       </div>
       <div class="service-delivery-bottom">
         <div class="service-workflow">
-          <span class="eyebrow">CÁCH PHỐI HỢP</span>
+          <span class="eyebrow">Cách phối hợp</span>
           <h3>Từ mục tiêu đến kết quả bàn giao</h3>
           <div class="service-workflow-list">
             <article v-for="(step, index) in serviceDeliveryDetail.workflow" :key="step.title">
@@ -844,7 +924,7 @@ function contactPath(service: string, packageName?: string) {
           </div>
         </div>
         <aside class="service-outcomes">
-          <span class="eyebrow">ĐẦU RA THAM KHẢO</span>
+          <span class="eyebrow">Đầu ra tham khảo</span>
           <h3>Những gì doanh nghiệp nhận được</h3>
           <ul><li v-for="outcome in serviceDeliveryDetail.outcomes" :key="outcome">{{ outcome }}</li></ul>
           <div class="service-audience"><b>Phù hợp với</b><p>{{ serviceDeliveryDetail.audience }}</p></div>
@@ -856,30 +936,20 @@ function contactPath(service: string, packageName?: string) {
     <template v-if="!subcategory">
       <section class="solution-section">
         <div class="section-heading">
-          <div><span class="eyebrow">KHÁM PHÁ {{ category.name.toLocaleUpperCase('vi') }}</span><h2>Chọn đúng hướng đi cho doanh nghiệp</h2><p>Mỗi nhóm giải pháp có thể bắt đầu độc lập và kết nối thành một hệ sinh thái thống nhất.</p></div>
+          <div><span class="eyebrow">Khám phá {{ category.name.toLowerCase() }}</span><h2>Chọn đúng hướng đi cho doanh nghiệp</h2><p>Mỗi nhóm giải pháp có thể bắt đầu độc lập và kết nối thành một hệ sinh thái thống nhất.</p></div>
         </div>
-        <div class="solution-card-grid">
-          <RouterLink
-            v-for="(item, index) in category.subcategories"
-            :key="item.name"
-            class="solution-card"
-            :to="solutionSubcategoryPath(category, item)"
-          >
-            <div class="solution-card-image"><img :src="category.name === 'Đào Tạo' ? trainingLandingThemes[item.name as keyof typeof trainingLandingThemes]?.image : imageSet[(pageIndex + index) % imageSet.length]" :alt="`Hình minh họa ${item.name}`" loading="lazy" /><span class="solution-card-index">0{{ index + 1 }}</span></div>
-            <div class="solution-card-copy"><span class="eyebrow">{{ category.name }}</span><h3>{{ item.name }}</h3><p>{{ item.description || item.items[0] || `Khám phá giải pháp ${item.name.toLowerCase()} phù hợp với quy trình của bạn.` }}</p><span class="solution-card-link">Khám phá danh mục <b aria-hidden="true">↗</b></span></div>
-          </RouterLink>
-        </div>
+        <CategoryCarousel :items="categorySubcategoryCarouselItems" :default-eyebrow="category.name" />
       </section>
     </template>
 
     <template v-else-if="!isItemPage">
       <section class="solution-detail-intro">
-        <div><span class="eyebrow">{{ implementationLanding ? 'CÁC PHÂN HỆ TRONG LĨNH VỰC' : 'TỪ Ý TƯỞNG ĐẾN GIÁ TRỊ' }}</span><h2>{{ implementationLanding ? `Khám phá ${subcategory.name.toLocaleLowerCase('vi')}` : 'Giải pháp phù hợp bắt đầu từ bài toán thật' }}</h2><p>{{ implementationLanding ? `Lựa chọn các hạng mục ${subcategory.name.toLocaleLowerCase('vi')} cần ưu tiên, sau đó mở rộng theo lộ trình của doanh nghiệp.` : 'Chúng tôi chia nhỏ từng hạng mục để bạn dễ hình dung phạm vi, trao đổi yêu cầu và xây dựng lộ trình triển khai phù hợp.' }}</p></div>
+        <div><span class="eyebrow">{{ implementationLanding ? 'Các phân hệ trong lĩnh vực' : 'Từ ý tưởng đến giá trị' }}</span><h2>{{ implementationLanding ? `Khám phá ${subcategory.name.toLocaleLowerCase('vi')}` : 'Giải pháp phù hợp bắt đầu từ bài toán thật' }}</h2><p>{{ implementationLanding ? `Lựa chọn các hạng mục ${subcategory.name.toLocaleLowerCase('vi')} cần ưu tiên, sau đó mở rộng theo lộ trình của doanh nghiệp.` : 'Chúng tôi chia nhỏ từng hạng mục để bạn dễ hình dung phạm vi, trao đổi yêu cầu và xây dựng lộ trình triển khai phù hợp.' }}</p></div>
         <div class="solution-detail-stats"><div><b>{{ subcategory.items.length || '01' }}</b><span>{{ subcategory.items.length ? 'hạng mục tham khảo' : 'giải pháp tư vấn' }}</span></div><div><b>360°</b><span>đồng hành triển khai</span></div></div>
       </section>
       <section v-if="category.name === 'Đào Tạo' && subcategory.focusAreas?.length" class="training-focus-section">
         <div class="training-focus-heading">
-          <span class="eyebrow">NỘI DUNG TRỌNG TÂM</span>
+          <span class="eyebrow">Nội dung trọng tâm</span>
           <h2>Các chủ đề trong chương trình</h2>
           <p>Nội dung được điều chỉnh theo mục tiêu, vai trò công việc và bối cảnh thực tế của doanh nghiệp.</p>
         </div>
@@ -892,6 +962,75 @@ function contactPath(service: string, packageName?: string) {
           <span aria-hidden="true">◎</span>
           <div><b>Đối tượng phù hợp</b><p>{{ subcategory.audience }}</p></div>
         </aside>
+      </section>
+
+      <!-- SERVICE PACKAGES: GÓI DỊCH VỤ FANPAGE AI -->
+      <section v-if="isAiBasicPage" class="fanpage-ai-pricing-section">
+        <div class="section-heading text-center">
+          <div>
+            <span class="eyebrow">Bảng giá dịch vụ · Tự động hóa bán hàng với AI</span>
+            <h2>Gói Dịch Vụ AI Cho Fanpage &amp; Tăng Trưởng Bán Hàng</h2>
+            <p>Ứng dụng trí tuệ nhân tạo thế hệ mới để tương tác khách hàng 24/7, phản hồi bình luận tức thì, tăng tỷ lệ chuyển đổi và giải phóng 80% thời gian trực page.</p>
+          </div>
+        </div>
+
+        <div class="fanpage-pricing-grid">
+          <article
+            v-for="pkg in fanpageAiPackages"
+            :key="pkg.id"
+            class="fanpage-pricing-card"
+            :class="{ 'is-featured': pkg.isFeatured }"
+          >
+            <div v-if="pkg.badge" class="fanpage-pkg-badge-wrap">
+              <span class="fanpage-pkg-badge">{{ pkg.badge }}</span>
+            </div>
+
+            <div class="fanpage-pkg-header">
+              <span class="eyebrow fanpage-eyebrow">Gói dịch vụ Fanpage</span>
+              <h3 class="fanpage-pkg-name">{{ pkg.name }}</h3>
+              <p class="fanpage-pkg-desc">{{ pkg.description }}</p>
+            </div>
+
+            <div class="fanpage-pkg-price-row">
+              <strong class="fanpage-pkg-price-num">{{ pkg.price }}₫</strong>
+              <span class="fanpage-pkg-price-unit">/ {{ pkg.unit }}</span>
+            </div>
+
+            <!-- Quick Highlight Badges -->
+            <div class="fanpage-pkg-highlights">
+              <span v-for="hl in pkg.highlights" :key="hl" class="highlight-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>{{ hl }}</span>
+              </span>
+            </div>
+
+            <div class="fanpage-pkg-divider"></div>
+
+            <ul class="fanpage-pkg-features" aria-label="Danh sách tính năng và quyền lợi">
+              <li v-for="feat in pkg.features" :key="feat">
+                <svg class="feat-check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>{{ feat }}</span>
+              </li>
+            </ul>
+
+            <div class="fanpage-pkg-footer">
+              <RouterLink
+                class="button button-wide fanpage-pkg-cta"
+                :class="pkg.isFeatured ? 'button-primary' : 'button-secondary'"
+                :to="contactPath(subcategory.name, pkg.name)"
+              >
+                <span>{{ pkg.ctaText }}</span>
+                <span aria-hidden="true">→</span>
+              </RouterLink>
+            </div>
+          </article>
+        </div>
+
+        <p class="fanpage-pricing-note">
+          * Báo giá trên là chi phí triển khai và đồng hành định kỳ. Hỗ trợ kết nối miễn phí Fanpage và chuyển giao tài liệu hướng dẫn chi tiết cho đội ngũ doanh nghiệp.
+        </p>
       </section>
       <div v-if="subcategory.items.length" class="solution-card-grid solution-item-grid">
         <RouterLink
@@ -909,7 +1048,7 @@ function contactPath(service: string, packageName?: string) {
         <div><h2>Bắt đầu từ nhu cầu của bạn</h2><p>Chia sẻ mục tiêu, quy mô và những vướng mắc hiện tại. Đội ngũ sẽ cùng bạn làm rõ phạm vi và đề xuất hướng triển khai phù hợp.</p><RouterLink class="button button-primary" :to="contactPath(subcategory.name)">Nhận tư vấn giải pháp <span aria-hidden="true">→</span></RouterLink></div>
       </div>
       <section v-else class="training-contact-cta">
-        <div><span class="eyebrow">THIẾT KẾ THEO NHU CẦU</span><h2>Cùng xây dựng lộ trình đào tạo phù hợp</h2><p>Trao đổi mục tiêu, nhóm học viên và tình huống thực tế để điều chỉnh nội dung, thời lượng và hình thức triển khai.</p></div>
+        <div><span class="eyebrow">Thiết kế theo nhu cầu</span><h2>Cùng xây dựng lộ trình đào tạo phù hợp</h2><p>Trao đổi mục tiêu, nhóm học viên và tình huống thực tế để điều chỉnh nội dung, thời lượng và hình thức triển khai.</p></div>
         <RouterLink class="button button-primary" :to="contactPath(subcategory.name)">Tư vấn chương trình <span aria-hidden="true">→</span></RouterLink>
       </section>
     </template>
@@ -917,7 +1056,7 @@ function contactPath(service: string, packageName?: string) {
     <section v-if="isWebsiteDevelopmentPage" class="website-content-pricing website-development-pricing">
       <div class="section-heading">
         <div>
-          <span class="eyebrow">GÓI PHÁT TRIỂN WEBSITE & WEB APP</span>
+          <span class="eyebrow">Gói phát triển Website & Web App</span>
           <h2>Chọn mức ngân sách phù hợp</h2>
           <p>Sáu mức chi phí tham khảo; phạm vi và báo giá chính thức được xác nhận sau khi trao đổi yêu cầu.</p>
         </div>
@@ -935,7 +1074,7 @@ function contactPath(service: string, packageName?: string) {
             <span v-if="index === 2" class="website-development-badge"><span aria-hidden="true">★</span> ĐƯỢC YÊU THÍCH</span>
           </div>
           <div class="website-development-copy" :style="{ animationDelay: `${index * 90}ms` }">
-            <span class="eyebrow">{{ plan.name.toLocaleUpperCase('vi') }}</span>
+            <span class="eyebrow">{{ plan.name }}</span>
             <h3 class="website-development-price-title"><strong>{{ plan.price }}</strong><span>triệu VNĐ</span></h3>
             <p>{{ plan.description }}</p>
             <ul>
@@ -953,7 +1092,7 @@ function contactPath(service: string, packageName?: string) {
     <section v-if="isWebsiteContentPage || isWebsiteAnalyticsPage || isTechnicalSeoPage" class="website-content-pricing" :class="{ 'website-analytics-pricing': isWebsiteAnalyticsPage || isTechnicalSeoPage }">
       <div class="section-heading">
         <div>
-          <span class="eyebrow">{{ isTechnicalSeoPage ? 'GÓI SEO KỸ THUẬT' : isWebsiteAnalyticsPage ? 'GÓI PHÂN TÍCH HIỆU SUẤT' : 'GÓI QUẢN TRỊ WEBSITE' }}</span>
+          <span class="eyebrow">{{ isTechnicalSeoPage ? 'Gói SEO kỹ thuật' : isWebsiteAnalyticsPage ? 'Gói phân tích hiệu suất' : 'Gói quản trị website' }}</span>
           <h2>{{ isTechnicalSeoPage ? 'Nền tảng kỹ thuật khỏe, trải nghiệm tìm kiếm tốt hơn' : isWebsiteAnalyticsPage ? 'Đo lường rõ ràng, tối ưu đúng trọng tâm' : 'Chọn mức đồng hành phù hợp' }}</h2>
           <p>{{ isTechnicalSeoPage ? 'Bốn cấp độ rà soát và tối ưu kỹ thuật, điều chỉnh theo quy mô website và mục tiêu tìm kiếm.' : isWebsiteAnalyticsPage ? 'Các gói tham khảo theo tháng, tùy chỉnh theo nền tảng đo lường, KPI và số lượng website.' : 'Chi phí tham khảo theo tháng, có thể điều chỉnh sau khi thống nhất khối lượng và hiện trạng website.' }}</p>
         </div>
@@ -961,7 +1100,7 @@ function contactPath(service: string, packageName?: string) {
       <div class="website-plan-grid">
         <article v-for="(plan, index) in activeWebsitePlans" :key="plan.name" class="website-plan-card" :class="{ 'website-plan-featured': index === 2 }">
           <span v-if="index === 3" class="website-plan-badge">CAO CẤP</span>
-          <span class="eyebrow">GÓI {{ plan.name.toLocaleUpperCase('vi') }}</span>
+          <span class="eyebrow">Gói {{ plan.name }}</span>
           <h3>{{ plan.name }}</h3>
           <p>{{ plan.description }}</p>
           <div class="website-plan-price"><strong>{{ plan.price }}₫</strong><span>/ tháng</span></div>
@@ -976,7 +1115,7 @@ function contactPath(service: string, packageName?: string) {
       <section class="solution-detail-capabilities" :class="{ 'solution-website-process': isWebsiteDevelopmentPage }">
         <div class="section-heading">
           <div>
-            <span class="eyebrow">{{ isWebsiteDevelopmentPage ? 'QUY TRÌNH TRIỂN KHAI THAM KHẢO' : serviceDeliveryDetail ? 'PHẠM VI DỊCH VỤ' : 'PHẠM VI THAM KHẢO' }}</span>
+            <span class="eyebrow">{{ isWebsiteDevelopmentPage ? 'Quy trình triển khai tham khảo' : serviceDeliveryDetail ? 'Phạm vi dịch vụ' : 'Phạm vi tham khảo' }}</span>
             <h2>{{ isWebsiteDevelopmentPage ? 'Từ yêu cầu đến bàn giao website' : 'Nội dung có thể triển khai' }}</h2>
             <p>{{ isWebsiteDevelopmentPage ? 'Các giai đoạn được thống nhất trước khi bắt đầu; mỗi mốc có đầu ra để rà soát và xác nhận.' : serviceDeliveryDetail ? `Phạm vi ${solutionItem.toLowerCase()} được chia thành các đầu việc rõ ràng, có đầu ra để cùng rà soát.` : 'Các đầu việc được thống nhất theo yêu cầu, nguồn lực và hệ thống đang sử dụng.' }}</p>
           </div>
@@ -1010,7 +1149,7 @@ function contactPath(service: string, packageName?: string) {
         </div>
       </section>
       <section v-if="!isWebsiteDevelopmentPage" class="solution-process-detail">
-        <div class="section-heading"><div><span class="eyebrow">{{ serviceDeliveryDetail ? 'QUY TRÌNH PHỐI HỢP' : 'CÁCH TIẾP CẬN' }}</span><h2>{{ serviceDeliveryDetail ? `Cách triển khai ${solutionItem.toLowerCase()}` : 'Triển khai theo từng bước rõ ràng' }}</h2><p v-if="serviceDeliveryDetail">Các mốc được điều chỉnh theo phạm vi cụ thể; kết quả từng bước được thống nhất cùng doanh nghiệp.</p></div></div>
+        <div class="section-heading"><div><span class="eyebrow">{{ serviceDeliveryDetail ? 'Quy trình phối hợp' : 'Cách tiếp cận' }}</span><h2>{{ serviceDeliveryDetail ? `Cách triển khai ${solutionItem.toLowerCase()}` : 'Triển khai theo từng bước rõ ràng' }}</h2><p v-if="serviceDeliveryDetail">Các mốc được điều chỉnh theo phạm vi cụ thể; kết quả từng bước được thống nhất cùng doanh nghiệp.</p></div></div>
         <div class="solution-process-grid">
           <article v-for="(step, index) in implementationSteps" :key="step.title">
             <span class="solution-process-number">0{{ index + 1 }}</span><div><h3>{{ step.title }}</h3><p>{{ step.description }}</p></div>
@@ -1019,7 +1158,7 @@ function contactPath(service: string, packageName?: string) {
       </section>
       <section v-if="subcategory.items.length > 1" class="solution-sibling-pages">
         <div class="solution-sibling-heading">
-          <div class="section-heading"><div><span class="eyebrow">CÙNG DANH MỤC</span><h2>Khám phá các hạng mục liên quan</h2></div></div>
+          <div class="section-heading"><div><span class="eyebrow">Cùng danh mục</span><h2>Khám phá các hạng mục liên quan</h2></div></div>
           <div class="solution-sibling-controls" aria-label="Điều hướng hạng mục liên quan">
             <button type="button" aria-label="Trượt sang trái" @click="scrollRelated(-1)">‹</button>
             <button type="button" aria-label="Trượt sang phải" @click="scrollRelated(1)">›</button>
@@ -1036,9 +1175,9 @@ function contactPath(service: string, packageName?: string) {
     </template>
 
     <section class="solution-related">
-      <div class="section-heading"><div><span class="eyebrow">KẾT NỐI GIẢI PHÁP</span><h2>Tiếp tục khám phá</h2></div><RouterLink class="text-link" to="/lien-he">Liên hệ DXtechs <span>→</span></RouterLink></div>
-      <div class="solution-related-links">
-        <RouterLink v-for="item in solutionCategories" :key="item.name" :to="solutionCategoryPath(item)" :class="{ active: item.name === category.name }">{{ item.name }} <span aria-hidden="true">↗</span></RouterLink>
+      <div class="section-heading"><div><span class="eyebrow">Kết nối giải pháp</span><h2>Tiếp tục khám phá</h2></div><RouterLink class="text-link" to="/lien-he">Liên hệ DXtechs <span>→</span></RouterLink></div>
+      <CategoryCarousel :items="relatedCategoriesCarouselItems" default-eyebrow="Danh mục giải pháp" />
+      <div class="solution-related-links" style="margin-top: 16px;">
         <RouterLink to="/phan-mem">Phần mềm <span aria-hidden="true">↗</span></RouterLink>
         <RouterLink to="/du-an">Dự Án <span aria-hidden="true">↗</span></RouterLink>
         <RouterLink to="/tai-nguyen">Tài Nguyên <span aria-hidden="true">↗</span></RouterLink>
@@ -1046,7 +1185,7 @@ function contactPath(service: string, packageName?: string) {
     </section>
   </div>
   <div v-else class="content-wrap solution-not-found">
-    <PageIntro eyebrow="GIẢI PHÁP DXTECHS" title="Không tìm thấy danh mục" description="Danh mục này không tồn tại hoặc đường dẫn đã thay đổi. Hãy chọn một nhóm giải pháp bên dưới." />
+    <PageIntro eyebrow="Giải pháp DXTechs" title="Không tìm thấy danh mục" description="Danh mục này không tồn tại hoặc đường dẫn đã thay đổi. Hãy chọn một nhóm giải pháp bên dưới." />
     <div class="solution-related-links"><RouterLink v-for="item in solutionCategories" :key="item.name" :to="solutionCategoryPath(item)">{{ item.name }} <span aria-hidden="true">→</span></RouterLink></div>
   </div>
 </template>

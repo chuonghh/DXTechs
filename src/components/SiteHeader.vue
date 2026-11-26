@@ -25,6 +25,7 @@ const activeSubcategories = ref<Record<string, string>>({})
 const searchText = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const searchOpen = ref(false)
 const language = ref(localStorage.getItem('dxtechs-language') === 'en' ? 'en' : 'vi')
+const langOpen = ref(false)
 const userMenuOpen = ref(false)
 
 async function signOut() {
@@ -83,6 +84,9 @@ function handleHeaderOutsideClick(event: PointerEvent) {
   if (!event.target.closest('.top-user-menu-container')) {
     userMenuOpen.value = false
   }
+  if (!event.target.closest('.lang-switcher-wrap')) {
+    langOpen.value = false
+  }
 }
 
 onMounted(() => document.addEventListener('pointerdown', handleHeaderOutsideClick))
@@ -93,9 +97,11 @@ function openSearchResult(result: SearchResult) {
   router.push(result.path)
 }
 
-function changeLanguage() {
-  localStorage.setItem('dxtechs-language', language.value)
-  document.documentElement.lang = language.value === 'en' ? 'en' : 'vi'
+function selectLanguage(val: 'vi' | 'en') {
+  language.value = val
+  localStorage.setItem('dxtechs-language', val)
+  document.documentElement.lang = val
+  langOpen.value = false
 }
 
 function selectedSubcategory(category: typeof solutionCategories[number]) {
@@ -208,13 +214,85 @@ function resourcePath(sectionSlug: string, topicSlug?: string) {
           <span>Đăng nhập</span>
         </RouterLink>
 
-        <label class="language-picker">
-          <span class="sr-only">Ngôn ngữ</span>
-          <select v-model="language" aria-label="Chọn ngôn ngữ" @change="changeLanguage">
-            <option value="vi">VI</option>
-            <option value="en">EN</option>
-          </select>
-        </label>
+        <!-- Language Switcher with Crisp Vector Flags -->
+        <div class="lang-switcher-wrap">
+          <button
+            type="button"
+            class="lang-toggle-btn"
+            :aria-expanded="langOpen"
+            aria-label="Chọn ngôn ngữ hiển thị"
+            @click="langOpen = !langOpen"
+          >
+            <span class="flag-icon-badge" aria-hidden="true">
+              <!-- Cờ Việt Nam chuẩn 3:2 sắc nét -->
+              <svg v-if="language === 'vi'" class="vector-flag" viewBox="0 0 24 16" width="20" height="13.33">
+                <rect width="24" height="16" fill="#DA251D" rx="2"/>
+                <polygon fill="#FFFF00" points="12,3.2 13.48,7.77 18.28,7.77 14.4,10.59 15.88,15.17 12,12.35 8.12,15.17 9.6,10.59 5.72,7.77 10.52,7.77"/>
+              </svg>
+              <!-- Cờ UK / English chuẩn 3:2 sắc nét -->
+              <svg v-else class="vector-flag" viewBox="0 0 24 16" width="20" height="13.33">
+                <clipPath id="uk-flag-clip"><rect width="24" height="16" rx="2"/></clipPath>
+                <g clip-path="url(#uk-flag-clip)">
+                  <rect width="24" height="16" fill="#012169"/>
+                  <path d="M0,0 L24,16 M24,0 L0,16" stroke="#FFFFFF" stroke-width="2.8"/>
+                  <path d="M0,0 L24,16" stroke="#C8102E" stroke-width="1.6"/>
+                  <path d="M24,0 L0,16" stroke="#C8102E" stroke-width="1.6"/>
+                  <path d="M12,0 V16 M0,8 H24" stroke="#FFFFFF" stroke-width="4.8"/>
+                  <path d="M12,0 V16 M0,8 H24" stroke="#C8102E" stroke-width="2.8"/>
+                </g>
+              </svg>
+            </span>
+            <span class="lang-text">{{ language.toUpperCase() }}</span>
+            <svg class="lang-chevron" :class="{ 'is-flipped': langOpen }" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          <Transition name="lang-pop-fade">
+            <div v-if="langOpen" class="lang-dropdown-menu" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                class="lang-menu-option"
+                :class="{ active: language === 'vi' }"
+                @click="selectLanguage('vi')"
+              >
+                <span class="flag-icon-badge" aria-hidden="true">
+                  <svg class="vector-flag" viewBox="0 0 24 16" width="20" height="13.33">
+                    <rect width="24" height="16" fill="#DA251D" rx="2"/>
+                    <polygon fill="#FFFF00" points="12,3.2 13.48,7.77 18.28,7.77 14.4,10.59 15.88,15.17 12,12.35 8.12,15.17 9.6,10.59 5.72,7.77 10.52,7.77"/>
+                  </svg>
+                </span>
+                <span class="lang-name">Tiếng Việt</span>
+                <span class="lang-badge">VI</span>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                class="lang-menu-option"
+                :class="{ active: language === 'en' }"
+                @click="selectLanguage('en')"
+              >
+                <span class="flag-icon-badge" aria-hidden="true">
+                  <svg class="vector-flag" viewBox="0 0 24 16" width="20" height="13.33">
+                    <clipPath id="uk-flag-opt-clip"><rect width="24" height="16" rx="2"/></clipPath>
+                    <g clip-path="url(#uk-flag-opt-clip)">
+                      <rect width="24" height="16" fill="#012169"/>
+                      <path d="M0,0 L24,16 M24,0 L0,16" stroke="#FFFFFF" stroke-width="2.8"/>
+                      <path d="M0,0 L24,16" stroke="#C8102E" stroke-width="1.6"/>
+                      <path d="M24,0 L0,16" stroke="#C8102E" stroke-width="1.6"/>
+                      <path d="M12,0 V16 M0,8 H24" stroke="#FFFFFF" stroke-width="4.8"/>
+                      <path d="M12,0 V16 M0,8 H24" stroke="#C8102E" stroke-width="2.8"/>
+                    </g>
+                  </svg>
+                </span>
+                <span class="lang-name">English</span>
+                <span class="lang-badge">EN</span>
+              </button>
+            </div>
+          </Transition>
+        </div>
       </div>
     </div>
   </div>
@@ -259,7 +337,7 @@ function resourcePath(sectionSlug: string, topicSlug?: string) {
                 @click="selectSubcategory(category.name, subcategory.name)"
               >
                 <svg
-                  v-if="subcategory.name.includes('AI') || subcategory.name.includes('Trí tuệ nhân tạo')"
+                  v-if="subcategory.name.includes('AI')"
                   class="menu-ai-sparkle text-cyan-400"
                   width="13"
                   height="13"
@@ -403,24 +481,6 @@ function resourcePath(sectionSlug: string, topicSlug?: string) {
           <button v-if="searchText.trim()" class="search-all-results" type="button" @click="search">Xem tất cả kết quả</button>
         </section>
       </div>
-
-      <!-- Main Cart Button (Triggers Slide-Out Drawer) -->
-      <div class="header-cart-action">
-        <button
-          class="main-cart-btn"
-          type="button"
-          :title="`Giỏ hàng (${shop.cartCount} sản phẩm)`"
-          aria-label="Mở giỏ hàng nhanh"
-          @click="shop.openCartDrawer"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="9" cy="20" r="1.5"></circle>
-            <circle cx="18" cy="20" r="1.5"></circle>
-            <path d="M1 2h4l2.68 12.42a2 2 0 0 0 2 1.58h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-          </svg>
-          <span v-if="shop.cartCount > 0" class="main-cart-badge">{{ shop.cartCount }}</span>
-        </button>
-      </div>
     </div>
 
     <!-- Mobile Navigation -->
@@ -430,19 +490,6 @@ function resourcePath(sectionSlug: string, topicSlug?: string) {
         <span class="sr-only">Mở điều hướng</span>
       </summary>
       <nav class="mobile-nav" aria-label="Điều hướng trên thiết bị di động">
-        <button
-          type="button"
-          class="mobile-cart-link"
-          @click="shop.openCartDrawer(); if (mobileNavToggle) mobileNavToggle.open = false"
-        >
-          <svg class="mobile-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <circle cx="9" cy="20" r="1.5"></circle>
-            <circle cx="18" cy="20" r="1.5"></circle>
-            <path d="M1 2h4l2.68 12.42a2 2 0 0 0 2 1.58h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-          </svg>
-          <span>Giỏ hàng ({{ shop.cartCount }})</span>
-        </button>
-
         <RouterLink
           v-if="shop.user?.role === 'admin'"
           to="/admin"
@@ -835,5 +882,136 @@ function resourcePath(sectionSlug: string, topicSlug?: string) {
 .solution-item-link:hover .solution-item-arrow {
   color: #0062ff;
   transform: translate(2px, -2px);
+}
+
+/* ==========================================================================
+   POLISHED LANGUAGE SWITCHER WITH VECTOR FLAGS
+   ========================================================================== */
+.lang-switcher-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.lang-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 4px 10px 4px 6px;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lang-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.flag-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.vector-flag {
+  display: block;
+  border-radius: 2px;
+}
+
+.lang-text {
+  line-height: 1;
+}
+
+.lang-chevron {
+  color: rgba(255, 255, 255, 0.7);
+  transition: transform 0.2s ease;
+}
+
+.lang-chevron.is-flipped {
+  transform: rotate(180deg);
+}
+
+.lang-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 136px;
+  background: #0f1c3d;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.45);
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 100;
+}
+
+.lang-menu-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.lang-menu-option:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.lang-menu-option.active {
+  background: rgba(0, 98, 255, 0.28);
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.lang-item-name {
+  flex: 1;
+}
+
+.lang-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.lang-menu-option.active .lang-badge {
+  background: #0062ff;
+  color: #ffffff;
+}
+
+.lang-pop-fade-enter-active,
+.lang-pop-fade-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.lang-pop-fade-enter-from,
+.lang-pop-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.96);
 }
 </style>

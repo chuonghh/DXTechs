@@ -27,3 +27,6 @@ scratch/
 .agents/
 .impeccable/
 .taste-skill/
+demo/
+demo.html
+public/demo.html

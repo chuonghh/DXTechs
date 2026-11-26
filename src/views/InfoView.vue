@@ -3,8 +3,29 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import PageIntro from '../components/PageIntro.vue'
 import LucianNotFoundTypo from '../components/LucianNotFoundTypo.vue'
+import CategoryCarousel, { type CategoryCarouselItem } from '../components/CategoryCarousel.vue'
 import { articles } from '../data/articles.ts'
 import { categories } from '../data/products.ts'
+
+const infoCategoryCarouselItems = computed<CategoryCarouselItem[]>(() => {
+  const images: Record<string, string> = {
+    software: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+    cloud: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
+    domain: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+    ssl: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+    storage: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=800&q=80',
+    backup: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=800&q=80',
+  }
+  return categories.map((cat) => ({
+    id: cat.id,
+    title: cat.name,
+    eyebrow: 'DỊCH VỤ SỐ',
+    description: cat.description,
+    image: images[cat.id] || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+    to: { name: 'services', query: { category: cat.id } },
+    ctaText: 'Khám phá ngay',
+  }))
+})
 
 const route = useRoute()
 const page = computed(() => String(route.name || 'not-found'))
@@ -439,11 +460,7 @@ const filteredArticles = computed(() => {
       <LucianNotFoundTypo />
       <div class="info-disclaimer">
         <b>Danh mục dịch vụ chính của DXTechs</b>
-        <div class="info-category-links">
-          <RouterLink v-for="category in categories" :key="category.id" :to="{ name: 'services', query: { category: category.id } }">
-            {{ category.name }} →
-          </RouterLink>
-        </div>
+        <CategoryCarousel :items="infoCategoryCarouselItems" default-eyebrow="DỊCH VỤ SỐ" />
       </div>
     </template>
   </div>

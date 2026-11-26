@@ -43,18 +43,6 @@ export const solutionCategories: SolutionCategory[] = ([
         ],
       },
       {
-        name: 'Trí tuệ nhân tạo (AI) và phân tích dữ liệu',
-        description: 'Khai thác dữ liệu và ứng dụng AI để hỗ trợ ra quyết định, tự động hóa các công việc lặp lại.',
-        highlights: ['Xác định bài toán và nguồn dữ liệu phù hợp', 'Thiết kế chatbot, trợ lý và quy trình tự động', 'Trực quan hóa dữ liệu cho hoạt động quản trị'],
-        items: [
-          'Tư vấn ứng dụng AI trong hoạt động doanh nghiệp.',
-          'Xây dựng chatbot và trợ lý AI.',
-          'Tự động hóa quy trình bằng AI.',
-          'Phân tích dữ liệu, xây dựng báo cáo và dashboard trực quan.',
-          'Nghiên cứu, phát triển các giải pháp Machine Learning và khai thác dữ liệu.',
-        ],
-      },
-      {
         name: 'Tư vấn chuyển đổi số',
         description: 'Đánh giá hiện trạng, chọn công nghệ phù hợp và xây dựng lộ trình chuyển đổi theo từng giai đoạn.',
         highlights: ['Đánh giá quy trình và hạ tầng hiện tại', 'Xác định ưu tiên, nguồn lực và lộ trình', 'Kết nối hệ thống và hỗ trợ chuyển giao'],

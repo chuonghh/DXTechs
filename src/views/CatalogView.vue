@@ -14,6 +14,7 @@ import {
 } from '../api/catalog'
 import { ApiError } from '../api'
 import type { Product } from '../data/products'
+import CategoryCarousel, { type CategoryCarouselItem } from '../components/CategoryCarousel.vue'
 
 const route = useRoute()
 
@@ -405,11 +406,69 @@ const availableLicenses = computed(() => {
   const pool = activeProductList.value
   return [...new Set(pool.map((product) => product.license))]
 })
+
+const productCategoryImages: Record<string, string> = {
+  software: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+  cloud: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
+  domain: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+  ssl: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+  storage: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=800&q=80',
+  backup: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=800&q=80',
+}
+
+const softwareSubcategoryImages: Record<string, string> = {
+  'Hệ điều hành': 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80',
+  'Văn phòng': 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80',
+  'Thiết kế': 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=800&q=80',
+  'Bảo mật': 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+  'Lập trình': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+}
+
+const softwareSubcategoryDescriptions: Record<string, string> = {
+  'Hệ điều hành': 'Hệ điều hành bản quyền chính hãng Windows, macOS, Linux an toàn và ổn định.',
+  'Văn phòng': 'Ứng dụng văn phòng Microsoft 365, Office Home tối ưu hóa năng suất làm việc.',
+  'Thiết kế': 'Bộ công cụ đồ họa, dựng phim và sáng tạo chuyên nghiệp Adobe, Autodesk.',
+  'Bảo mật': 'Giải pháp diệt virus, tường lửa và bảo vệ điểm cuối doanh nghiệp tin cậy.',
+  'Lập trình': 'Môi trường phát triển IDE, cơ sở dữ liệu và công cụ tối ưu cho lập trình viên.',
+}
+
+const catalogCarouselItems = computed<CategoryCarouselItem[]>(() => {
+  if (isSoftwarePage.value) {
+    const subs = categories.value.find((c) => c.id === 'software')?.subcategories || []
+    return subs.map((sub) => ({
+      id: sub,
+      title: sub,
+      eyebrow: 'PHẦN MỀM BẢN QUYỀN',
+      description: softwareSubcategoryDescriptions[sub] || 'Phần mềm bản quyền chính hãng, hỗ trợ cài đặt và kích hoạt trọn gói.',
+      image: softwareSubcategoryImages[sub] || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+      to: { name: 'software', query: { subcategory: sub } },
+      ctaText: 'Khám phá ngay',
+    }))
+  }
+
+  return categories.value.map((cat) => ({
+    id: cat.id,
+    title: cat.name,
+    eyebrow: 'DỊCH VỤ SỐ',
+    description: cat.description,
+    image: productCategoryImages[cat.id] || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+    to: { name: 'services', query: { category: cat.id } },
+    ctaText: 'Khám phá ngay',
+  }))
+})
 </script>
 
 <template>
   <div class="catalog-view content-wrap">
     <PageIntro category="Danh mục giải pháp số" :title="pageTitle" :description="pageDescription" />
+
+    <!-- Synchronized Category Carousel Showcase -->
+    <section class="catalog-carousel-section" aria-label="Danh mục nổi bật">
+      <CategoryCarousel
+        :items="catalogCarouselItems"
+        :default-eyebrow="isSoftwarePage ? 'PHẦN MỀM BẢN QUYỀN' : 'DỊCH VỤ SỐ'"
+      />
+    </section>
 
     <div v-if="searchQuery" class="search-summary">
       Kết quả tìm kiếm cho <strong>“{{ searchQuery }}”</strong>

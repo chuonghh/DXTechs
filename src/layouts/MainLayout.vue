@@ -2,7 +2,6 @@
 import { RouterView } from 'vue-router'
 import SiteFooter from '../components/SiteFooter.vue'
 import SiteHeader from '../components/SiteHeader.vue'
-import CartDrawer from '../components/CartDrawer.vue'
 </script>
 
 <template>
@@ -23,9 +22,6 @@ import CartDrawer from '../components/CartDrawer.vue'
 
     <!-- 3. FOOTER DOANH NGHIỆP ĐỒNG BỘ -->
     <SiteFooter />
-
-    <!-- 4. GLOBAL SLIDE-OUT CART DRAWER -->
-    <CartDrawer />
   </div>
 </template>
 
