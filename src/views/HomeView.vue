@@ -205,8 +205,7 @@ const sampleCustomers = [
     </section>
 
     <!-- LEGIT BANNER -->
-    <section class="legit-banner">
-      <div class="legit-seal" aria-hidden="true">✓</div>
+    <section class="legit-banner" aria-label="Cam kết năng lực triển khai">
       <div>
         <span class="eyebrow">Đồng hành thực chiến · Bảo đảm kết quả</span>
         <h2>Quy trình chuẩn mực,<br />vận hành tự tin.</h2>
@@ -215,10 +214,22 @@ const sampleCustomers = [
       </div>
       <div class="legit-visual">
         <div class="license-card">
-          <span class="license-logo-frame"><img src="/dxtechs-logo.png" alt="DXtechs" /></span>
-          <span>DXTECHS ENTERPRISE</span>
-          <strong>TƯ VẤN &amp;<br />TRIỂN KHAI MAY ĐO</strong>
-          <i>● DỊCH VỤ DOANH NGHIỆP B2B</i>
+          <div class="license-card-head">
+            <span class="license-logo-frame"><img src="/dxtechs-logo.png" alt="DXtechs" /></span>
+            <span class="license-spec-code">SPEC-2026 / B2B</span>
+          </div>
+          <div class="license-card-body">
+            <strong>Tiêu Chuẩn Triển Khai</strong>
+            <ul class="license-spec-list">
+              <li><span>Kiến trúc</span><b>Module may đo</b></li>
+              <li><span>Cam kết SLA</span><b>99.9% Uptime</b></li>
+              <li><span>Bảo mật</span><b>Thỏa thuận NDA</b></li>
+              <li><span>Chuyển giao</span><b>Trọn gói 1-1</b></li>
+            </ul>
+          </div>
+          <div class="license-card-foot">
+            <i>DXTechs Enterprise Verification</i>
+          </div>
         </div>
       </div>
       <span class="legit-footnote">* Hỗ trợ kỹ thuật và cam kết SLA theo thỏa thuận dịch vụ</span>

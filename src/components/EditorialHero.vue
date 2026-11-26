@@ -27,7 +27,7 @@ onMounted(() => {
       <!-- LEFT CONTENT COLUMN -->
       <div class="editorial-hero-content">
         <div class="hero-eyebrow">
-          <span class="eyebrow-pulsing-dot" aria-hidden="true"></span>
+          <span class="eyebrow-dot" aria-hidden="true"></span>
           <span>Đối tác công nghệ &amp; chuyển đổi số</span>
         </div>
 
@@ -39,7 +39,7 @@ onMounted(() => {
         </h1>
 
         <p class="editorial-desc">
-          DXTechs đồng hành phát triển phần mềm may đo, tư vấn triển khai hệ thống ERP và đào tạo chuyên sâu về ứng dụng AI, định hình <strong>Nền Tảng Doanh Nghiệp Bứt Phá</strong>, 2026.
+          Tư vấn kiến trúc phần mềm, chuyển giao hệ thống ERP/MES may đo và đào tạo ứng dụng AI thực chiến theo bài toán quản trị vận hành của doanh nghiệp.
         </p>
 
         <div class="editorial-acts">
@@ -111,10 +111,10 @@ onMounted(() => {
               </div>
             </RouterLink>
 
-            <!-- 2. Training: AI X10 -->
+            <!-- 2. Training: AI Practical -->
             <RouterLink to="/giai-phap/dao-tao/ai-cho-doanh-nghiep-x10-hieu-suat" class="mosaic-cell cell-training">
               <div class="cell-top">
-                <span class="cell-tag tag-training">ĐÀO TẠO ĐỘT PHÁ</span>
+                <span class="cell-tag tag-training">ĐÀO TẠO THỰC CHIẾN</span>
                 <div class="cell-icon-bubble">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -122,11 +122,11 @@ onMounted(() => {
                 </div>
               </div>
               <div class="cell-body">
-                <h3 class="cell-heading">AI Cho Doanh Nghiệp: X10 Hiệu Suất</h3>
-                <p class="cell-desc">Ứng dụng AI Agents giảm 70% thời gian thao tác lặp lại.</p>
+                <h3 class="cell-heading">Ứng Dụng AI Trong Vận Hành Doanh Nghiệp</h3>
+                <p class="cell-desc">Tự động hóa xử lý tác vụ kế toán, kho vận và phân tích báo cáo quản trị.</p>
               </div>
               <div class="cell-bottom-row">
-                <span>Dành cho Ban Giám Đốc</span>
+                <span>Dành cho cấp quản lý</span>
                 <span class="cell-action">Lộ trình →</span>
               </div>
             </RouterLink>
@@ -138,7 +138,7 @@ onMounted(() => {
                 <span class="cell-tag">CLOUD INFRA</span>
                 <div class="cell-bottom">
                   <span class="cell-kicker">HẠ TẦNG DOANH NGHIỆP</span>
-                  <h3 class="cell-heading">Trung Tâm Dữ Liệu & Điện Toán Đám Mây</h3>
+                  <h3 class="cell-heading">Trung Tâm Dữ Liệu &amp; Điện Toán Đám Mây</h3>
                 </div>
               </div>
             </RouterLink>
@@ -146,7 +146,7 @@ onMounted(() => {
             <!-- 4. Career: AI Engineer -->
             <RouterLink to="/lien-he" class="mosaic-cell cell-career">
               <div class="cell-top">
-                <span class="cell-tag tag-career">TUYỂN DỤNG NHÂN TÀI</span>
+                <span class="cell-tag tag-career">ĐỘI NGŨ KỸ SƯ</span>
                 <div class="cell-icon-bubble">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="7" r="4"/>
@@ -155,11 +155,11 @@ onMounted(() => {
                 </div>
               </div>
               <div class="cell-body">
-                <h3 class="cell-heading">Kỹ Sư AI & Automation Pipeline</h3>
-                <p class="cell-desc">Xây dựng RAG, LangChain và tối ưu hóa mô hình LLM cho ERP.</p>
+                <h3 class="cell-heading">Kỹ Sư AI &amp; Automation Pipeline</h3>
+                <p class="cell-desc">Xây dựng RAG, LangChain và tối ưu hóa mô hình phục vụ ERP.</p>
               </div>
               <div class="cell-bottom-row">
-                <span>Thu nhập hấp dẫn</span>
+                <span>Kiến trúc chuẩn mực</span>
                 <span class="cell-action">Ứng tuyển ngay →</span>
               </div>
             </RouterLink>
@@ -174,7 +174,7 @@ onMounted(() => {
                 <p class="cell-desc">Giải pháp số toàn diện kết nối con người, dữ liệu và quy trình sản xuất.</p>
               </div>
               <div class="cell-bottom-row">
-                <span>Bảo mật ngân hàng</span>
+                <span>Cam kết bảo mật NDA</span>
               </div>
             </div>
 
@@ -192,7 +192,7 @@ onMounted(() => {
 
             <RouterLink to="/giai-phap/dao-tao/ai-cho-doanh-nghiep-x10-hieu-suat" class="mosaic-cell cell-training" aria-hidden="true">
               <div class="cell-top">
-                <span class="cell-tag tag-training">ĐÀO TẠO ĐỘT PHÁ</span>
+                <span class="cell-tag tag-training">ĐÀO TẠO THỰC CHIẾN</span>
                 <div class="cell-icon-bubble">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -200,11 +200,11 @@ onMounted(() => {
                 </div>
               </div>
               <div class="cell-body">
-                <h3 class="cell-heading">AI Cho Doanh Nghiệp: X10 Hiệu Suất</h3>
-                <p class="cell-desc">Ứng dụng AI Agents giảm 70% thời gian thao tác lặp lại.</p>
+                <h3 class="cell-heading">Ứng Dụng AI Trong Vận Hành Doanh Nghiệp</h3>
+                <p class="cell-desc">Tự động hóa xử lý tác vụ kế toán, kho vận và phân tích báo cáo quản trị.</p>
               </div>
               <div class="cell-bottom-row">
-                <span>Dành cho Ban Giám Đốc</span>
+                <span>Dành cho cấp quản lý</span>
                 <span class="cell-action">Lộ trình →</span>
               </div>
             </RouterLink>
@@ -215,14 +215,14 @@ onMounted(() => {
                 <span class="cell-tag">CLOUD INFRA</span>
                 <div class="cell-bottom">
                   <span class="cell-kicker">HẠ TẦNG DOANH NGHIỆP</span>
-                  <h3 class="cell-heading">Trung Tâm Dữ Liệu & Điện Toán Đám Mây</h3>
+                  <h3 class="cell-heading">Trung Tâm Dữ Liệu &amp; Điện Toán Đám Mây</h3>
                 </div>
               </div>
             </RouterLink>
 
             <RouterLink to="/lien-he" class="mosaic-cell cell-career" aria-hidden="true">
               <div class="cell-top">
-                <span class="cell-tag tag-career">TUYỂN DỤNG NHÂN TÀI</span>
+                <span class="cell-tag tag-career">ĐỘI NGŨ KỸ SƯ</span>
                 <div class="cell-icon-bubble">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="7" r="4"/>
@@ -231,11 +231,11 @@ onMounted(() => {
                 </div>
               </div>
               <div class="cell-body">
-                <h3 class="cell-heading">Kỹ Sư AI & Automation Pipeline</h3>
-                <p class="cell-desc">Xây dựng RAG, LangChain và tối ưu hóa mô hình LLM cho ERP.</p>
+                <h3 class="cell-heading">Kỹ Sư AI &amp; Automation Pipeline</h3>
+                <p class="cell-desc">Xây dựng RAG, LangChain và tối ưu hóa mô hình phục vụ ERP.</p>
               </div>
               <div class="cell-bottom-row">
-                <span>Thu nhập hấp dẫn</span>
+                <span>Kiến trúc chuẩn mực</span>
                 <span class="cell-action">Ứng tuyển ngay →</span>
               </div>
             </RouterLink>
@@ -249,7 +249,7 @@ onMounted(() => {
                 <p class="cell-desc">Giải pháp số toàn diện kết nối con người, dữ liệu và quy trình sản xuất.</p>
               </div>
               <div class="cell-bottom-row">
-                <span>Bảo mật ngân hàng</span>
+                <span>Cam kết bảo mật NDA</span>
               </div>
             </div>
           </div>
@@ -615,18 +615,11 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.eyebrow-pulsing-dot {
-  width: 7px;
-  height: 7px;
+.eyebrow-dot {
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #070e24;
-  box-shadow: 0 0 0 3px rgba(7, 14, 36, 0.18);
-  animation: pulseDot 2s infinite ease-in-out;
-}
-
-@keyframes pulseDot {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.3); opacity: 0.7; }
 }
 
 /* 2. HEADLINE (INTERMIXED BLUE & BLACK · BALANCED RHYTHM · MASKED ENTRANCE) */
