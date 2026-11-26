@@ -3,14 +3,16 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LucianButton from '../components/LucianButton.vue'
 import LucianCopyButton from '../components/LucianCopyButton.vue'
-import LucianSwitch from '../components/LucianSwitch.vue'
 import PaginationBar from '../components/PaginationBar.vue'
 import { formatPrice, products } from '../data/products.ts'
 import { useShopStore } from '../stores/shop.ts'
+import { useAuthStore } from '../stores/auth'
+import { describeAuthError } from '../api/auth'
 
 const route = useRoute()
 const router = useRouter()
 const shop = useShopStore()
+const auth = useAuthStore()
 
 const activeTab = ref<'overview' | 'vault' | 'orders' | 'profile' | 'security'>('overview')
 const isOrdersPage = computed(() => route.name === 'orders')
@@ -57,11 +59,8 @@ const accountNavTabs = computed(() => [
   { value: 'security', label: 'Bảo mật & 2FA' },
 ])
 
-// Security Tab Lucian Switches
-const twoFactorAuth = ref(true)
-const loginAlerts = ref(true)
-const cloudBackupVault = ref(true)
-const autoRenewLicense = ref(false)
+// Route guard chuyển về đây khi tài khoản không phải admin mở /admin.
+const deniedAdmin = computed(() => route.query.denied === 'admin')
 
 // Vault Pagination
 const vaultPage = ref(1)
@@ -79,33 +78,55 @@ const paginatedOrders = computed(() => {
   return shop.orders.slice(start, start + orderPageSize.value)
 })
 
-function switchRole(role: 'customer' | 'admin') {
-  shop.switchRole(role)
-  if (role === 'admin') {
-    router.push('/admin')
+// Hồ sơ: hiển thị từ tài khoản thật (server). Sửa hồ sơ qua API sẽ có ở bản sau — chưa cho sửa để không “lưu giả”.
+const profileForm = computed(() => ({
+  name: auth.user?.fullName ?? '',
+  email: auth.user?.email ?? '',
+  phone: auth.user?.phone ?? '',
+  company: auth.user?.companyName ?? '',
+  taxCode: auth.user?.taxCode ?? '',
+}))
+
+// Đổi mật khẩu (PUT /api/me/password): mọi phiên khác bị thu hồi, thiết bị này nhận phiên mới.
+const passwordForm = reactive({ current: '', next: '', confirm: '' })
+const passwordState = reactive({ busy: false, message: '', error: '', fields: {} as Record<string, string> })
+
+async function submitPasswordChange() {
+  passwordState.message = ''
+  passwordState.error = ''
+  passwordState.fields = {}
+  if (passwordForm.next !== passwordForm.confirm) {
+    passwordState.fields = { newPassword: 'Mật khẩu nhập lại chưa khớp.' }
+    return
+  }
+  passwordState.busy = true
+  try {
+    await auth.changePassword(passwordForm.current, passwordForm.next)
+    passwordForm.current = passwordForm.next = passwordForm.confirm = ''
+    passwordState.message = 'Đã đổi mật khẩu. Các thiết bị khác đã bị đăng xuất.'
+  } catch (error) {
+    const { message, fields } = describeAuthError(error)
+    passwordState.error = message
+    passwordState.fields = fields
+  } finally {
+    passwordState.busy = false
   }
 }
 
-// Profile edit form
-const profileForm = reactive({
-  name: shop.user?.name || 'Nguyễn Văn An',
-  email: shop.user?.email || 'an.nguyen@dxtechs.vn',
-  phone: '0971 798 186',
-  company: 'DXTechs Digital Corp',
-  position: 'Trưởng phòng CNTT',
-})
+async function logoutEverywhere() {
+  if (!window.confirm('Đăng xuất khỏi tất cả thiết bị, kể cả thiết bị này?')) return
+  try {
+    await auth.logoutAll()
+  } finally {
+    shop.notify('Đã đăng xuất khỏi mọi thiết bị')
+    router.push('/dang-nhap')
+  }
+}
 
 // Activation Guide & Invoice Modal
 const selectedOrderForGuide = ref<any | null>(null)
 const selectedOrderForInvoice = ref<any | null>(null)
 
-function saveProfile() {
-  if (shop.user) {
-    shop.user.name = profileForm.name
-    shop.user.email = profileForm.email
-  }
-  shop.notify('Đã cập nhật thông tin tài khoản thành công!')
-}
 
 function createSampleOrder() {
   const sampleProduct = products[0] || {
@@ -120,24 +141,15 @@ function createSampleOrder() {
   }
   shop.cart = [{ product: sampleProduct as any, quantity: 1 }]
   shop.completeCheckout({
-    customerName: shop.user?.name || profileForm.name,
-    customerEmail: shop.user?.email || profileForm.email,
+    customerName: shop.user?.name || profileForm.value.name,
+    customerEmail: shop.user?.email || profileForm.value.email,
     paymentMethod: 'Thẻ Quốc tế (Mô phỏng)',
   })
 }
 
-function logout() {
-  shop.signOut()
+async function logout() {
+  await shop.signOut()
   router.push('/')
-}
-
-function quickLoginUser(role: 'customer' | 'admin' = 'customer') {
-  if (role === 'admin') {
-    shop.signIn('Quản trị viên DXTechs', 'admin@dxtechs.vn', 'admin', '0971 798 186', 'DXTechs Digital Corp')
-    router.push('/admin')
-  } else {
-    shop.signIn('Nguyễn Văn An', 'an.nguyen@dxtechs.vn', 'customer', '0971 798 186', 'DXTechs Digital Corp')
-  }
 }
 </script>
 
@@ -222,7 +234,10 @@ function quickLoginUser(role: 'customer' | 'admin' = 'customer') {
             <p class="role-box-desc">
               {{ shop.user.role === 'admin'
                 ? 'Toàn quyền duyệt đơn, quản lý sản phẩm, cấp phát key bản quyền và xem báo cáo tài chính.'
-                : 'Trải nghiệm không gian quản trị hệ thống với 1 chạm nhanh chóng.' }}
+                : 'Tài khoản khách hàng: theo dõi đơn hàng, license và hoá đơn của bạn.' }}
+            </p>
+            <p v-if="deniedAdmin && shop.user.role !== 'admin'" class="form-error" role="alert">
+              Trang quản trị chỉ dành cho tài khoản admin.
             </p>
             <LucianButton
               v-if="shop.user.role === 'admin'"
@@ -232,15 +247,6 @@ function quickLoginUser(role: 'customer' | 'admin' = 'customer') {
               @click="router.push('/admin')"
             >
               Mở Admin Console →
-            </LucianButton>
-            <LucianButton
-              v-else
-              variant="outline"
-              size="sm"
-              style="width: 100%; justify-content: center;"
-              @click="switchRole('admin')"
-            >
-              Chuyển sang quyền Admin
             </LucianButton>
           </div>
 
@@ -288,7 +294,7 @@ function quickLoginUser(role: 'customer' | 'admin' = 'customer') {
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                       <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                     </svg>
-                    Bảo mật 2FA Active
+                    Đăng nhập bảo mật (phiên có hạn)
                   </span>
                   <span class="trust-tag">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -634,39 +640,35 @@ function quickLoginUser(role: 'customer' | 'admin' = 'customer') {
             </div>
 
             <div class="profile-card">
-              <form class="profile-edit-form" @submit.prevent="saveProfile">
+              <form class="profile-edit-form" @submit.prevent>
                 <div class="form-grid-two">
                   <label class="dark-form-label">
-                    <span>Họ và tên đại diện</span>
-                    <input v-model="profileForm.name" class="dark-input" required />
+                    <span>Họ và tên</span>
+                    <input :value="profileForm.name" class="dark-input" readonly />
                   </label>
                   <label class="dark-form-label">
                     <span>Email tài khoản</span>
-                    <input v-model="profileForm.email" type="email" class="dark-input" required />
+                    <input :value="profileForm.email" type="email" class="dark-input" readonly />
                   </label>
                 </div>
 
                 <div class="form-grid-two">
                   <label class="dark-form-label">
                     <span>Số điện thoại liên hệ</span>
-                    <input v-model="profileForm.phone" type="tel" class="dark-input" />
+                    <input :value="profileForm.phone" type="tel" class="dark-input" readonly placeholder="Chưa cập nhật" />
                   </label>
                   <label class="dark-form-label">
                     <span>Tên công ty / Tổ chức</span>
-                    <input v-model="profileForm.company" class="dark-input" />
+                    <input :value="profileForm.company" class="dark-input" readonly placeholder="Chưa cập nhật" />
                   </label>
                 </div>
 
                 <label class="dark-form-label">
-                  <span>Chức vụ / Phòng ban</span>
-                  <input v-model="profileForm.position" class="dark-input" />
+                  <span>Mã số thuế (để xuất hoá đơn VAT)</span>
+                  <input :value="profileForm.taxCode" class="dark-input" readonly placeholder="Chưa cập nhật" />
                 </label>
 
-                <div class="profile-actions-bar">
-                  <LucianButton variant="primary" type="submit">
-                    Lưu thay đổi hồ sơ
-                  </LucianButton>
-                </div>
+                <p class="security-card-desc">Chỉnh sửa hồ sơ sẽ có trong bản cập nhật tới. Cần thay đổi gấp, vui lòng liên hệ hỗ trợ.</p>
               </form>
             </div>
           </template>
@@ -680,105 +682,50 @@ function quickLoginUser(role: 'customer' | 'admin' = 'customer') {
               </div>
             </div>
 
-            <!-- Stretchy Switches Security Matrix -->
+            <!-- Đổi mật khẩu (API thật) -->
             <div class="security-card">
-              <h3 class="security-card-title">Cơ chế Bảo vệ Bản quyền &amp; Dữ liệu</h3>
-              <p class="security-card-desc">Cấu hình các tiêu chuẩn an ninh đa tầng bảo vệ License Vault và thông tin thanh toán của tổ chức.</p>
-
-              <div class="security-switches-list">
-                <div class="security-switch-row">
-                  <LucianSwitch
-                    v-model="twoFactorAuth"
-                    label="Xác thực 2 yếu tố (2FA Google Authenticator)"
-                    subtext-off="Tài khoản chưa được kích hoạt bảo vệ 2 lớp"
-                    subtext-on="Đã kích hoạt: Yêu cầu mã 6 số OTP khi đăng nhập mới"
-                  />
-                </div>
-
-                <div class="security-switch-row">
-                  <LucianSwitch
-                    v-model="loginAlerts"
-                    label="Cảnh báo đăng nhập từ thiết bị &amp; IP lạ"
-                    subtext-off="Không gửi email thông báo khi có phiên mới"
-                    subtext-on="Đang theo dõi: Gửi email cảnh báo vị trí tức thì"
-                  />
-                </div>
-
-                <div class="security-switch-row">
-                  <LucianSwitch
-                    v-model="cloudBackupVault"
-                    label="Tự động sao lưu &amp; Mã hóa AES-256 Vault"
-                    subtext-off="Lưu trữ offline trên bộ nhớ cục bộ"
-                    subtext-on="Đồng bộ đám mây DX Cloud với khóa mã hóa riêng"
-                  />
-                </div>
-
-                <div class="security-switch-row">
-                  <LucianSwitch
-                    v-model="autoRenewLicense"
-                    label="Tự động gia hạn bản quyền Enterprise"
-                    subtext-off="Gia hạn thủ công khi hợp đồng hết hiệu lực"
-                    subtext-on="Tự động gửi hóa đơn và gia hạn tránh gián đoạn dịch vụ"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Password Change Form -->
-            <div class="security-card mt-6">
               <h3 class="security-card-title">Đổi mật khẩu tài khoản</h3>
-              <p class="security-card-desc">Để bảo vệ tài khoản, hãy sử dụng mật khẩu mạnh gồm chữ hoa, số và ký tự đặc biệt.</p>
-              <form class="security-pass-form" @submit.prevent="shop.notify('Đã cập nhật mật khẩu mới thành công!')">
+              <p class="security-card-desc">
+                Tối thiểu 10 ký tự — có thể dùng chữ có dấu và khoảng trắng (ví dụ một câu dễ nhớ). Không cần ký tự đặc biệt.
+                Đổi xong, mọi thiết bị khác sẽ bị đăng xuất.
+              </p>
+              <form class="security-pass-form" @submit.prevent="submitPasswordChange">
                 <label class="dark-form-label">
                   <span>Mật khẩu hiện tại</span>
-                  <input type="password" placeholder="••••••••" class="dark-input" required />
+                  <input v-model="passwordForm.current" type="password" autocomplete="current-password" class="dark-input" required />
+                  <small v-if="passwordState.fields.currentPassword" class="form-error">{{ passwordState.fields.currentPassword }}</small>
                 </label>
                 <div class="form-grid-two">
                   <label class="dark-form-label">
                     <span>Mật khẩu mới</span>
-                    <input type="password" minlength="6" placeholder="Ít nhất 6 ký tự" class="dark-input" required />
+                    <input v-model="passwordForm.next" type="password" minlength="10" maxlength="128" autocomplete="new-password" placeholder="Ít nhất 10 ký tự" class="dark-input" required />
+                    <small v-if="passwordState.fields.newPassword" class="form-error">{{ passwordState.fields.newPassword }}</small>
                   </label>
                   <label class="dark-form-label">
                     <span>Xác nhận mật khẩu mới</span>
-                    <input type="password" minlength="6" placeholder="Nhập lại mật khẩu" class="dark-input" required />
+                    <input v-model="passwordForm.confirm" type="password" minlength="10" maxlength="128" autocomplete="new-password" placeholder="Nhập lại mật khẩu" class="dark-input" required />
                   </label>
                 </div>
+                <p v-if="passwordState.error" class="form-error" role="alert">{{ passwordState.error }}</p>
+                <p v-if="passwordState.message" class="security-card-desc" role="status">{{ passwordState.message }}</p>
                 <div style="margin-top: 1rem;">
-                  <LucianButton variant="outline" type="submit">
-                    Cập nhật mật khẩu
+                  <LucianButton variant="outline" type="submit" :disabled="passwordState.busy">
+                    {{ passwordState.busy ? 'Đang cập nhật…' : 'Cập nhật mật khẩu' }}
                   </LucianButton>
                 </div>
               </form>
             </div>
 
-            <!-- Active Sessions -->
+            <!-- Phiên đăng nhập -->
             <div class="security-card active-sessions-card mt-6">
-              <h3 class="security-card-title">Phiên thiết bị đang hoạt động</h3>
-              <div class="session-row">
-                <span class="session-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                    <line x1="2" y1="20" x2="22" y2="20"></line>
-                  </svg>
-                </span>
-                <div>
-                  <b>Trình duyệt Web hiện tại (macOS / Chrome)</b>
-                  <small>IP: 14.161.22.84 · Đang trực tuyến</small>
-                </div>
-                <span class="current-session-badge">Thiết bị hiện tại</span>
-              </div>
-              <div class="session-row">
-                <span class="session-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-                    <line x1="12" y1="18" x2="12.01" y2="18"></line>
-                  </svg>
-                </span>
-                <div>
-                  <b>DXTechs Mobile App (iPhone 16 Pro)</b>
-                  <small>TP. Hồ Chí Minh · Hoạt động 2 giờ trước</small>
-                </div>
-              </div>
+              <h3 class="security-card-title">Phiên đăng nhập</h3>
+              <p class="security-card-desc">
+                Phiên trên mỗi thiết bị tự gia hạn khi bạn dùng và kết thúc sau tối đa 30 ngày. Nếu nghi ngờ tài khoản bị lộ,
+                hãy đổi mật khẩu hoặc đăng xuất khỏi mọi thiết bị.
+              </p>
+              <LucianButton variant="outline" @click="logoutEverywhere">
+                Đăng xuất khỏi mọi thiết bị
+              </LucianButton>
             </div>
           </template>
         </section>
@@ -798,14 +745,14 @@ function quickLoginUser(role: 'customer' | 'admin' = 'customer') {
         <p>Vui lòng đăng nhập để tra cứu bản quyền số, kích hoạt key và tải hóa đơn GTGT.</p>
 
         <div class="quick-login-grid">
-          <button type="button" class="quick-login-card" @click="quickLoginUser('customer')">
-            <b>Đăng nhập Demo: Doanh nghiệp</b>
-            <small>an.nguyen@dxtechs.vn</small>
-          </button>
-          <button type="button" class="quick-login-card admin-highlight" @click="quickLoginUser('admin')">
-            <b>Đăng nhập Demo: Admin Portal</b>
-            <small>admin@dxtechs.vn</small>
-          </button>
+          <RouterLink class="quick-login-card" :to="{ name: 'login', query: { redirect: route.fullPath } }">
+            <b>Đăng nhập</b>
+            <small>Dùng email đã đăng ký</small>
+          </RouterLink>
+          <RouterLink class="quick-login-card" to="/dang-ky">
+            <b>Tạo tài khoản</b>
+            <small>Miễn phí, chỉ cần email</small>
+          </RouterLink>
         </div>
       </div>
     </div>

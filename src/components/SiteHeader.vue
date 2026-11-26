@@ -27,16 +27,10 @@ const searchOpen = ref(false)
 const language = ref(localStorage.getItem('dxtechs-language') === 'en' ? 'en' : 'vi')
 const userMenuOpen = ref(false)
 
-function toggleRole() {
-  if (!shop.user) return
-  const nextRole = shop.user.role === 'admin' ? 'customer' : 'admin'
-  shop.switchRole(nextRole)
+async function signOut() {
   userMenuOpen.value = false
-  if (nextRole === 'admin') {
-    router.push('/admin')
-  } else {
-    router.push('/tai-khoan')
-  }
+  await shop.signOut()
+  if (route.meta.requiresAuth || route.meta.requiresAdmin) router.push('/')
 }
 const menuImages = [
   'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=960&q=80',
@@ -190,7 +184,7 @@ function resourcePath(sectionSlug: string, topicSlug?: string) {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3"/></svg>
                 <span>Kho Giấy phép &amp; Đơn hàng</span>
               </RouterLink>
-              <RouterLink to="/admin" class="popover-link admin-link-highlight">
+              <RouterLink v-if="shop.user.role === 'admin'" to="/admin" class="popover-link admin-link-highlight">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                 <span>Trang Quản trị Admin</span>
                 <span class="tag-live">PRO</span>
@@ -200,16 +194,8 @@ function resourcePath(sectionSlug: string, topicSlug?: string) {
             <div class="user-popover-footer">
               <button
                 type="button"
-                class="role-toggle-btn"
-                @click.stop="toggleRole"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                <span>Chuyển quyền: {{ shop.user.role === 'admin' ? 'Khách hàng' : 'Admin' }}</span>
-              </button>
-              <button
-                type="button"
                 class="sign-out-btn"
-                @click.stop="shop.signOut(); userMenuOpen = false"
+                @click.stop="signOut"
               >
                 Đăng xuất
               </button>

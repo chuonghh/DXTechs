@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { products as defaultProducts, type Product } from '../data/products'
+import { useAuthStore } from './auth'
 
 export interface CartItem {
   product: Product
@@ -23,6 +24,7 @@ export interface DemoOrder {
   taxCode?: string
 }
 
+/** Dạng người dùng các view cũ đang dùng; nay lấy từ tài khoản thật (store auth), chỉ đọc. */
 export interface DemoUser {
   name: string
   email: string
@@ -194,19 +196,25 @@ export const useShopStore = defineStore('shop', () => {
   }
   const orders = ref<DemoOrder[]>(initialOrders)
 
-  // 3. User Auth State (Persistent)
-  const savedUser = localStorage.getItem('dxtechs_user')
-  const user = ref<DemoUser | null>(
-    savedUser
-      ? JSON.parse(savedUser)
-      : {
-          name: 'Nguyễn Văn An',
-          email: 'an.nguyen@dxtechs.vn',
-          role: 'customer',
-          phone: '0971 798 186',
-          company: 'DXTechs Digital Corp',
-        },
+  // 3. Người dùng: lấy từ phiên đăng nhập thật (store auth, server PR-8). Chỉ đọc — đổi hồ sơ/quyền phải qua API.
+  const auth = useAuthStore()
+  const user = computed<DemoUser | null>(() =>
+    auth.user
+      ? {
+          name: auth.user.fullName,
+          email: auth.user.email,
+          role: auth.user.role,
+          phone: auth.user.phone ?? undefined,
+          company: auth.user.companyName ?? undefined,
+        }
+      : null,
   )
+  // Dọn người dùng giả của bản cũ (trước PR-C3 lưu trong localStorage và tự nhận quyền admin được).
+  try {
+    localStorage.removeItem('dxtechs_user')
+  } catch {
+    // bỏ qua
+  }
 
   // 4. Products State (Allows Admin to Add/Edit/Delete products)
   const savedProducts = localStorage.getItem('dxtechs_admin_products')
@@ -226,11 +234,6 @@ export const useShopStore = defineStore('shop', () => {
 
   watch(orders, (newVal) => {
     localStorage.setItem('dxtechs_orders', JSON.stringify(newVal))
-  }, { deep: true })
-
-  watch(user, (newVal) => {
-    if (newVal) localStorage.setItem('dxtechs_user', JSON.stringify(newVal))
-    else localStorage.removeItem('dxtechs_user')
   }, { deep: true })
 
   watch(productList, (newVal) => {
@@ -332,28 +335,10 @@ export const useShopStore = defineStore('shop', () => {
     notify('Đã hủy áp dụng mã ưu đãi')
   }
 
-  // Auth actions
-  function signIn(name: string, email: string, role: 'customer' | 'admin' = 'customer', phone: string = '', company: string = '') {
-    user.value = { name, email, role, phone, company }
-    notify(`Xin chào ${name}, bạn đã đăng nhập thành công với vai trò ${role === 'admin' ? 'Quản trị viên (Admin)' : 'Khách hàng'}`)
-  }
-
-  function signOut() {
-    user.value = null
+  // Đăng xuất: thu hồi refresh token ở server, xoá phiên trong bộ nhớ.
+  async function signOut() {
+    await auth.logout()
     notify('Bạn đã đăng xuất khỏi tài khoản')
-  }
-
-  function switchRole(newRole: 'customer' | 'admin') {
-    if (!user.value) {
-      user.value = {
-        name: newRole === 'admin' ? 'Admin DXTechs' : 'Nguyễn Văn An',
-        email: newRole === 'admin' ? 'admin@dxtechs.vn' : 'an.nguyen@dxtechs.vn',
-        role: newRole,
-      }
-    } else {
-      user.value.role = newRole
-    }
-    notify(`Đã chuyển đổi sang chế độ: ${newRole === 'admin' ? 'Quản trị viên (Admin)' : 'Khách hàng'}`)
   }
 
   // Checkout actions
@@ -389,17 +374,6 @@ export const useShopStore = defineStore('shop', () => {
     }
 
     orders.value.unshift(order)
-
-    // Update current user if needed
-    if (!user.value) {
-      user.value = {
-        name: details.customerName,
-        email: details.customerEmail,
-        role: 'customer',
-        phone: details.customerPhone,
-        company: details.companyName,
-      }
-    }
 
     cart.value = []
     couponCode.value = ''
@@ -461,9 +435,7 @@ export const useShopStore = defineStore('shop', () => {
     clearCart,
     applyCoupon,
     removeCoupon,
-    signIn,
     signOut,
-    switchRole,
     completeCheckout,
     adminUpdateOrderStatus,
     adminAddProduct,
