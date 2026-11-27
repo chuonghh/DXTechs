@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatPrice } from '../data/products'
 import { useShopStore } from '../stores/shop'
 
 const shop = useShopStore()
 const router = useRouter()
-const couponInput = ref('')
 
-function handleApplyCoupon() {
-  if (!couponInput.value.trim()) return
-  shop.applyCoupon(couponInput.value)
-  couponInput.value = ''
-}
+// PR-C4: mở ngăn giỏ / đổi số lượng ⇒ lấy báo giá thật từ server (giá, tồn kho). Chờ 400 ms để bấm +/- liên tục chỉ gọi một lần.
+let quoteTimer: ReturnType<typeof setTimeout> | undefined
+watch([() => shop.isCartDrawerOpen, () => shop.cart], ([open]) => {
+  if (!open) return
+  clearTimeout(quoteTimer)
+  quoteTimer = setTimeout(() => void shop.refreshQuote(), 400)
+}, { deep: true })
 
 function goToCheckout() {
   shop.closeCartDrawer()
@@ -96,7 +97,10 @@ function goToCart() {
             <div class="drawer-item-info">
               <span class="drawer-item-category">{{ item.product.categoryLabel }}</span>
               <h4 class="drawer-item-name">{{ item.product.name }}</h4>
-              <div class="drawer-item-price">{{ formatPrice(item.product.price) }}</div>
+              <div class="drawer-item-price">{{ formatPrice(shop.quoteLineFor(item)?.unitPriceVnd ?? item.product.price) }}</div>
+              <small v-if="shop.quoteLineFor(item) && shop.quoteLineFor(item)!.status !== 'ok'" class="drawer-item-stock">
+                {{ shop.quoteLineFor(item)!.status === 'insufficient_stock' ? `Chỉ còn ${shop.quoteLineFor(item)!.availableQuantity}` : 'Tạm hết hàng' }}
+              </small>
               
               <div class="drawer-item-controls">
                 <div class="qty-pill">
@@ -134,28 +138,6 @@ function goToCart() {
           </li>
         </ul>
 
-        <!-- Coupon box -->
-        <div class="drawer-coupon-box">
-          <div v-if="shop.couponCode" class="drawer-coupon-applied">
-            <span class="coupon-tag">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                <line x1="7" y1="7" x2="7.01" y2="7"></line>
-              </svg>
-              Mã <strong>{{ shop.couponCode }}</strong> (-{{ shop.discountPercent }}%)
-            </span>
-            <button type="button" class="coupon-remove" @click="shop.removeCoupon">Gỡ bỏ</button>
-          </div>
-          <div v-else class="drawer-coupon-input-group">
-            <input
-              v-model="couponInput"
-              type="text"
-              placeholder="Nhập mã ưu đãi (VD: DXTECHS2025)"
-              @keyup.enter="handleApplyCoupon"
-            />
-            <button type="button" @click="handleApplyCoupon">Áp dụng</button>
-          </div>
-        </div>
       </div>
 
       <!-- Footer / Summary -->
@@ -166,7 +148,7 @@ function goToCart() {
             <span>{{ formatPrice(shop.subtotal) }}</span>
           </div>
           <div v-if="shop.discountAmount > 0" class="summary-line discount">
-            <span>Giảm giá ({{ shop.discountPercent }}%)</span>
+            <span>Giảm giá</span>
             <span>-{{ formatPrice(shop.discountAmount) }}</span>
           </div>
           <div class="summary-line total">
@@ -631,5 +613,6 @@ function goToCart() {
 .drawer-btn-cart:active {
   transform: scale(0.95);
 }
+.drawer-item-stock { display: block; color: #b45309; font-size: .78rem; }
 </style>
 

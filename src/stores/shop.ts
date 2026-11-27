@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { products as defaultProducts, type Product } from '../data/products'
+import { ApiError, getProduct, quoteCart, type CartItemInput, type CartQuote } from '../api'
 import { useAuthStore } from './auth'
 
 export interface CartItem {
@@ -240,11 +241,69 @@ export const useShopStore = defineStore('shop', () => {
     localStorage.setItem('dxtechs_admin_products', JSON.stringify(newVal))
   }, { deep: true })
 
-  // Computed Calculations
+  // ---------- Báo giá thật từ server (PR-C4) ----------
+  // Giá, tồn kho, tổng tiền do server tính (POST /api/cart/quote). Giá lưu trong giỏ (localStorage) chỉ để hiển thị tạm khi
+  // chưa có báo giá — không bao giờ dùng để đặt hàng.
+  const quote = ref<CartQuote | null>(null)
+  const quoteError = ref('')
+  const quoting = ref(false)
+  let quoteSeq = 0
+
+  /** Dòng giỏ chưa có variantId (giỏ cũ, thêm từ thẻ sản phẩm) ⇒ tra gói mặc định theo slug. */
+  async function ensureVariantIds() {
+    const missing = cart.value.filter((item) => !item.product.variantId)
+    await Promise.all(missing.map(async (item) => {
+      try {
+        const detail = await getProduct(item.product.slug)
+        const variant = detail.variants.find((v) => v.isDefault) ?? detail.variants[0]
+        if (variant) item.product = { ...item.product, variantId: variant.id }
+      } catch {
+        // Sản phẩm không còn bán ⇒ để server báo "unavailable" qua dòng không có variantId (bị loại khỏi báo giá).
+      }
+    }))
+  }
+
+  function cartItemsInput(): CartItemInput[] {
+    const byVariant = new Map<string, number>()
+    for (const item of cart.value) {
+      if (item.product.variantId) byVariant.set(item.product.variantId, (byVariant.get(item.product.variantId) ?? 0) + item.quantity)
+    }
+    return [...byVariant].map(([variantId, quantity]) => ({ variantId, quantity }))
+  }
+
+  async function refreshQuote() {
+    const seq = ++quoteSeq
+    if (!cart.value.length) {
+      quote.value = null
+      quoteError.value = ''
+      return
+    }
+    quoting.value = true
+    try {
+      await ensureVariantIds()
+      const items = cartItemsInput()
+      const result = items.length ? await quoteCart(items) : null
+      if (seq !== quoteSeq) return // đã có lần báo giá mới hơn
+      quote.value = result
+      quoteError.value = items.length < cart.value.length ? 'Có sản phẩm không còn bán — vui lòng xoá khỏi giỏ.' : ''
+    } catch (error) {
+      if (seq !== quoteSeq) return
+      quoteError.value = error instanceof ApiError ? error.message : 'Không lấy được báo giá, vui lòng thử lại.'
+    } finally {
+      if (seq === quoteSeq) quoting.value = false
+    }
+  }
+
+  /** Dòng báo giá của một sản phẩm trong giỏ (theo variantId). */
+  function quoteLineFor(item: CartItem) {
+    return quote.value?.lines.find((l) => l.variantId === item.product.variantId)
+  }
+
+  // Computed Calculations — ưu tiên số của server khi đã có báo giá.
   const cartCount = computed(() => cart.value.reduce((sum, item) => sum + item.quantity, 0))
-  const subtotal = computed(() => cart.value.reduce((sum, item) => sum + item.product.price * item.quantity, 0))
-  const discountAmount = computed(() => Math.round((subtotal.value * discountPercent.value) / 100))
-  const finalTotal = computed(() => Math.max(0, subtotal.value - discountAmount.value))
+  const subtotal = computed(() => quote.value?.subtotalVnd ?? cart.value.reduce((sum, item) => sum + item.product.price * item.quantity, 0))
+  const discountAmount = computed(() => quote.value?.discountVnd ?? 0)
+  const finalTotal = computed(() => quote.value?.totalVnd ?? Math.max(0, subtotal.value - discountAmount.value))
 
   // Notifications
   function notify(message: string) {
@@ -305,28 +364,13 @@ export const useShopStore = defineStore('shop', () => {
   }
 
   // Coupon handling
+  /**
+   * Mã ưu đãi: server chưa có coupon (Phase 4) ⇒ không áp giảm giá ở trình duyệt nữa (trước PR-C4 là mã giả: web giảm giá nhưng
+   * server tính đủ tiền ⇒ khách bị lệch số). Giữ hàm để giao diện cũ không lỗi.
+   */
   function applyCoupon(code: string): { success: boolean; message: string } {
-    const cleanCode = code.trim().toUpperCase()
-    if (!cleanCode) return { success: false, message: 'Vui lòng nhập mã ưu đãi' }
-
-    if (cleanCode === 'DXTECHS2025' || cleanCode === 'DXTECH') {
-      couponCode.value = cleanCode
-      discountPercent.value = 15
-      notify(`Đã áp dụng mã ${cleanCode}: Giảm 15%`)
-      return { success: true, message: 'Áp dụng mã DXTechs thành công (-15%)' }
-    } else if (cleanCode === 'VIP20') {
-      couponCode.value = cleanCode
-      discountPercent.value = 20
-      notify(`Đã áp dụng mã VIP: Giảm 20%`)
-      return { success: true, message: 'Áp dụng mã Đối tác VIP thành công (-20%)' }
-    } else if (cleanCode === 'WELCOME10' || cleanCode === 'START') {
-      couponCode.value = cleanCode
-      discountPercent.value = 10
-      notify(`Đã áp dụng mã Người dùng mới (-10%)`)
-      return { success: true, message: 'Áp dụng mã Người dùng mới thành công (-10%)' }
-    }
-
-    return { success: false, message: 'Mã ưu đãi không hợp lệ hoặc đã hết hạn' }
+    if (!code.trim()) return { success: false, message: 'Vui lòng nhập mã ưu đãi' }
+    return { success: false, message: 'Mã ưu đãi chưa áp dụng cho thanh toán trực tuyến. Liên hệ hotline để được báo giá ưu đãi.' }
   }
 
   function removeCoupon() {
@@ -414,6 +458,12 @@ export const useShopStore = defineStore('shop', () => {
 
   return {
     cart,
+    quote,
+    quoteError,
+    quoting,
+    refreshQuote,
+    quoteLineFor,
+    cartItemsInput,
     orders,
     user,
     productList,
