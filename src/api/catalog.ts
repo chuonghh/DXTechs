@@ -200,6 +200,7 @@ export function detailToLegacyProduct(detail: ProductDetail): Product {
   const variant = detail.variants.find((v) => v.isDefault) ?? detail.variants[0]
   return {
     id: legacyNumericId(detail.slug),
+    variantId: variant?.id,
     slug: detail.slug,
     name: detail.name,
     category: root,

@@ -13,6 +13,7 @@ const AuthView = () => import('../views/AuthView.vue')
 const AccountView = () => import('../views/AccountView.vue')
 const AdminView = () => import('../views/AdminView.vue')
 const ContentAdminView = () => import('../views/ContentAdminView.vue')
+const OrderView = () => import('../views/OrderView.vue')
 const AboutView = () => import('../views/AboutView.vue')
 const InfoView = () => import('../views/InfoView.vue')
 const ContactView = () => import('../views/ContactView.vue')
@@ -55,11 +56,12 @@ const router = createRouter({
         { path: 'du-an', name: 'projects', component: InfoView },
         { path: 'bang-gia', redirect: '/du-an' },
         { path: 'gio-hang', name: 'cart', component: CartView },
-        { path: 'thanh-toan', name: 'checkout', component: CheckoutView },
+        { path: 'thanh-toan', name: 'checkout', component: CheckoutView, meta: { requiresAuth: true } },
         { path: 'dang-nhap', name: 'login', component: AuthView, meta: { guestOnly: true } },
         { path: 'dang-ky', name: 'register', component: AuthView, meta: { guestOnly: true } },
         { path: 'tai-khoan', name: 'account', component: AccountView, meta: { requiresAuth: true } },
         { path: 'don-hang', name: 'orders', component: AccountView, meta: { requiresAuth: true } },
+        { path: 'don-hang/:code', name: 'order', component: OrderView, meta: { requiresAuth: true } },
         { path: 'gioi-thieu', name: 'about', component: AboutView },
         { path: 'chinh-sach', name: 'policies', component: InfoView },
         { path: 'tin-tuc/:slug?', name: 'news', component: InfoView },

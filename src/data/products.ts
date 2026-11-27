@@ -2,6 +2,8 @@ export type ProductCategory = 'software' | 'cloud' | 'domain' | 'ssl' | 'storage
 
 export interface Product {
   id: number
+  /** Gói (variant) trên server — giỏ hàng/đơn hàng dùng id này (PR-C4). Dữ liệu cũ không có ⇒ tra theo slug khi báo giá. */
+  variantId?: string
   slug: string
   name: string
   category: ProductCategory

@@ -2,16 +2,19 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LucianButton from '../components/LucianButton.vue'
-import LucianCopyButton from '../components/LucianCopyButton.vue'
-import PaginationBar from '../components/PaginationBar.vue'
-import { formatPrice, products } from '../data/products.ts'
 import { useShopStore } from '../stores/shop.ts'
 import { useAuthStore } from '../stores/auth'
+import { useOrdersStore } from '../stores/orders'
+import MyOrders from '../components/MyOrders.vue'
+import LicenseVault from '../components/LicenseVault.vue'
 import { describeAuthError } from '../api/auth'
 
 const route = useRoute()
 const router = useRouter()
 const shop = useShopStore()
+const orders = useOrdersStore()
+// PR-C4: số đơn + key thật (tab Tổng quan cũng hiển thị).
+void orders.load().then(() => orders.loadLicenses())
 const auth = useAuthStore()
 
 const activeTab = ref<'overview' | 'vault' | 'orders' | 'profile' | 'security'>('overview')
@@ -36,47 +39,17 @@ watch(() => route.name, (name) => {
   }
 })
 
-const allLicenses = computed(() => {
-  return shop.orders.flatMap((order) => {
-    return order.items.map((item) => ({
-      orderId: order.id,
-      orderDate: order.date,
-      licenseCode: order.licenseCode,
-      product: item.product,
-      quantity: item.quantity,
-      status: 'Đang hoạt động',
-      deviceLimit: item.product.category === 'software' ? '1 Thiết bị PC / Mac' : 'Cấp phép tổ chức',
-    }))
-  })
-})
-
 // Navigation tabs for LucianSegmented
 const accountNavTabs = computed(() => [
   { value: 'overview', label: 'Tổng quan' },
-  { value: 'vault', label: 'Kho License', count: allLicenses.value.length },
-  { value: 'orders', label: 'Đơn hàng & VAT', count: shop.orders.length },
+  { value: 'vault', label: 'Kho License', count: orders.licenses.length },
+  { value: 'orders', label: 'Đơn hàng', count: orders.items.length },
   { value: 'profile', label: 'Hồ sơ' },
   { value: 'security', label: 'Bảo mật & 2FA' },
 ])
 
 // Route guard chuyển về đây khi tài khoản không phải admin mở /admin.
 const deniedAdmin = computed(() => route.query.denied === 'admin')
-
-// Vault Pagination
-const vaultPage = ref(1)
-const vaultPageSize = ref(4)
-const paginatedLicenses = computed(() => {
-  const start = (vaultPage.value - 1) * vaultPageSize.value
-  return allLicenses.value.slice(start, start + vaultPageSize.value)
-})
-
-// Orders Pagination
-const orderPage = ref(1)
-const orderPageSize = ref(3)
-const paginatedOrders = computed(() => {
-  const start = (orderPage.value - 1) * orderPageSize.value
-  return shop.orders.slice(start, start + orderPageSize.value)
-})
 
 // Hồ sơ: hiển thị từ tài khoản thật (server). Sửa hồ sơ qua API sẽ có ở bản sau — chưa cho sửa để không “lưu giả”.
 const profileForm = computed(() => ({
@@ -121,30 +94,6 @@ async function logoutEverywhere() {
     shop.notify('Đã đăng xuất khỏi mọi thiết bị')
     router.push('/dang-nhap')
   }
-}
-
-// Activation Guide & Invoice Modal
-const selectedOrderForGuide = ref<any | null>(null)
-const selectedOrderForInvoice = ref<any | null>(null)
-
-
-function createSampleOrder() {
-  const sampleProduct = products[0] || {
-    id: 1,
-    name: 'Office Pro 2025 Bản Quyền',
-    price: 1490000,
-    license: 'Bản quyền vĩnh viễn',
-    term: 'Trọn đời',
-    category: 'software',
-    slug: 'office-pro-2025',
-    imageUrl: '/products/software.svg',
-  }
-  shop.cart = [{ product: sampleProduct as any, quantity: 1 }]
-  shop.completeCheckout({
-    customerName: shop.user?.name || profileForm.value.name,
-    customerEmail: shop.user?.email || profileForm.value.email,
-    paymentMethod: 'Thẻ Quốc tế (Mô phỏng)',
-  })
 }
 
 async function logout() {
@@ -281,7 +230,7 @@ async function logout() {
                   </span>
                 </div>
                 <h2>{{ shop.user.name }}</h2>
-                <p>Hệ thống DXTechs Cloud đang vận hành ổn định. Bạn có <strong>{{ shop.orders.length }}</strong> đơn hàng và <strong>{{ allLicenses.length }}</strong> bản quyền số đang quản lý.</p>
+                <p>Bạn có <strong>{{ orders.items.length }}</strong> đơn hàng<template v-if="orders.pendingCount"> (<strong>{{ orders.pendingCount }}</strong> đang chờ thanh toán)</template> và <strong>{{ orders.licenses.length }}</strong> license key.</p>
                 <div class="account-trust-tags">
                   <span class="trust-tag">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -304,14 +253,7 @@ async function logout() {
                   </span>
                 </div>
               </div>
-              <LucianButton
-                v-if="!shop.orders.length"
-                variant="outline"
-                size="sm"
-                @click="createSampleOrder"
-              >
-                + Tạo đơn hàng mẫu thử nghiệm
-              </LucianButton>
+              <RouterLink v-if="!orders.items.length" class="button button-outline" to="/phan-mem">Khám phá phần mềm →</RouterLink>
             </div>
 
             <!-- Stat Grid (4-Column Bento Grid - UI/UX Pro Max) -->
@@ -326,7 +268,7 @@ async function logout() {
                 </span>
                 <div>
                   <small>Tổng đơn hàng đã đặt</small>
-                  <b>{{ shop.orders.length }} đơn</b>
+                  <b>{{ orders.items.length }} đơn</b>
                 </div>
               </div>
 
@@ -339,7 +281,7 @@ async function logout() {
                 </span>
                 <div>
                   <small>Bản quyền đang hoạt động</small>
-                  <b>{{ allLicenses.length }} License Key</b>
+                  <b>{{ orders.licenses.length }} License Key</b>
                 </div>
               </div>
 
@@ -413,224 +355,22 @@ async function logout() {
             <div class="account-section-title">
               <div>
                 <span class="eyebrow-cyan">KHO GIẤY PHÉP ĐIỆN TỬ</span>
-                <h2>Danh sách License Keys của bạn ({{ allLicenses.length }})</h2>
-              </div>
-              <LucianButton
-                v-if="!allLicenses.length"
-                variant="outline"
-                size="sm"
-                @click="createSampleOrder"
-              >
-                + Thêm bản quyền mẫu
-              </LucianButton>
-            </div>
-
-            <div v-if="allLicenses.length">
-              <div class="vault-grid">
-                <article v-for="(lic, idx) in paginatedLicenses" :key="idx" class="vault-card">
-                  <div class="vault-card-head">
-                    <img :src="lic.product.imageUrl" class="vault-product-thumb" :alt="lic.product.name" />
-                    <div class="vault-info">
-                      <div class="vault-info-top">
-                        <span class="vault-cat-pill">{{ lic.product.category === 'software' ? 'Phần mềm bản quyền' : 'Giải pháp số' }}</span>
-                        <span class="vault-status-chip">
-                          <span class="pulse-dot"></span>
-                          {{ lic.status }}
-                        </span>
-                      </div>
-                      <h3 class="vault-product-title">{{ lic.product.name }}</h3>
-                      <div class="vault-meta-row">
-                        <span>{{ lic.deviceLimit }}</span>
-                        <span>·</span>
-                        <span>{{ lic.product.term }}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Key Display & Lucian Copy Button -->
-                  <div class="vault-key-container">
-                    <div class="vault-key-meta">
-                      <span class="vault-key-label">PRODUCT KEY / LICENSE CODE</span>
-                      <code class="vault-key-code">{{ lic.licenseCode }}</code>
-                    </div>
-                    <LucianCopyButton
-                      :text="lic.licenseCode"
-                      feedback-text="Đã chép Key!"
-                      :compact="false"
-                      label="Sao chép"
-                    />
-                  </div>
-
-                  <!-- Card Actions -->
-                  <div class="vault-card-actions">
-                    <LucianButton
-                      variant="outline"
-                      size="sm"
-                      @click="shop.notify(`Đang mở tải bộ cài đặt ${lic.product.name}...`)"
-                    >
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path>
-                      </svg>
-                      <span>Tải bộ cài đặt</span>
-                    </LucianButton>
-
-                    <LucianButton
-                      variant="secondary"
-                      size="sm"
-                      @click="selectedOrderForGuide = { licenseCode: lic.licenseCode }"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-                      </svg>
-                      <span>Hướng dẫn kích hoạt</span>
-                    </LucianButton>
-                  </div>
-
-                  <div class="vault-card-footer">
-                    <small>Mã đơn hàng: <b>{{ lic.orderId }}</b> · Ngày cấp: {{ lic.orderDate }}</small>
-                    <span class="vault-guarantee-badge">✓ Bảo hành kích hoạt 100%</span>
-                  </div>
-                </article>
-              </div>
-
-              <!-- Pagination Bar for Vault in Light Theme -->
-              <PaginationBar
-                v-if="allLicenses.length > 0"
-                v-model:currentPage="vaultPage"
-                v-model:pageSize="vaultPageSize"
-                :totalItems="allLicenses.length"
-                :pageSizeOptions="[2, 4, 6, 8]"
-                itemLabel="giấy phép"
-                theme="light"
-                style="margin-top: 1.5rem;"
-              />
-            </div>
-
-            <div v-else class="account-empty-card">
-              <span class="empty-icon-wrap">
-                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-              </span>
-              <h3>Kho giấy phép của bạn đang trống</h3>
-              <p>Sau khi thanh toán thành công, License Key và đường dẫn tải bộ cài đặt sẽ tự động lưu trữ tại đây.</p>
-              <div class="empty-btn-group">
-                <LucianButton variant="primary" @click="createSampleOrder">
-                  + Tạo giấy phép mẫu ngay
-                </LucianButton>
+                <h2>License key của bạn ({{ orders.licenses.length }})</h2>
               </div>
             </div>
+            <LicenseVault />
           </template>
 
-          <!-- TAB 3: ORDERS & VAT -->
           <template v-else-if="activeTab === 'orders'">
             <div class="account-section-title">
               <div>
                 <span class="eyebrow-cyan">LỊCH SỬ GIAO DỊCH</span>
-                <h2>Danh sách đơn hàng &amp; Hóa đơn GTGT</h2>
+                <h2>Đơn của tôi</h2>
               </div>
-              <LucianButton
-                v-if="!shop.orders.length"
-                variant="outline"
-                size="sm"
-                @click="createSampleOrder"
-              >
-                + Tạo đơn hàng mẫu
-              </LucianButton>
             </div>
-
-            <div v-if="shop.orders.length">
-              <div class="order-list">
-                <article v-for="order in paginatedOrders" :key="order.id" class="order-card-modern">
-                  <div class="order-card-top">
-                    <div class="order-id-meta">
-                      <div class="id-row">
-                        <b>Mã đơn: {{ order.id }}</b>
-                        <span class="order-status-pill">{{ order.status }}</span>
-                      </div>
-                      <small>Thời gian đặt hàng: {{ order.date }} · Thanh toán: {{ order.paymentMethod }}</small>
-                    </div>
-                    <LucianButton
-                      variant="secondary"
-                      size="sm"
-                      @click="selectedOrderForInvoice = order"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                      </svg>
-                      <span>Hóa đơn VAT</span>
-                    </LucianButton>
-                  </div>
-
-                  <div class="order-table-details">
-                    <div v-for="item in order.items" :key="item.product.id" class="order-table-row">
-                      <div class="item-name-col">
-                        <strong>{{ item.product.name }}</strong>
-                        <small>{{ item.product.license }} · Gói {{ item.product.term }}</small>
-                      </div>
-                      <div class="item-qty-col">Số lượng: {{ item.quantity }}</div>
-                      <div class="item-price-col">{{ formatPrice(item.product.price * item.quantity) }}</div>
-                    </div>
-                  </div>
-
-                  <!-- License Key Bar with LucianCopyButton -->
-                  <div class="license-key-bar">
-                    <div class="key-label-group">
-                      <span class="key-badge">LICENSE KEY</span>
-                      <code class="license-code-display">{{ order.licenseCode }}</code>
-                    </div>
-                    <div class="key-actions">
-                      <LucianCopyButton
-                        :text="order.licenseCode"
-                        feedback-text="Đã chép Key!"
-                        label="Sao chép"
-                        :compact="false"
-                      />
-                      <LucianButton
-                        variant="secondary"
-                        size="sm"
-                        @click="selectedOrderForGuide = order"
-                      >
-                        Hướng dẫn kích hoạt
-                      </LucianButton>
-                    </div>
-                  </div>
-
-                  <div class="order-card-footer">
-                    <div class="order-total-display">
-                      <span>Tổng thanh toán:</span>
-                      <strong>{{ formatPrice(order.total) }}</strong>
-                    </div>
-                  </div>
-                </article>
-              </div>
-
-              <!-- Pagination Bar for Orders in Light Theme -->
-              <PaginationBar
-                v-if="shop.orders.length > 0"
-                v-model:currentPage="orderPage"
-                v-model:pageSize="orderPageSize"
-                :totalItems="shop.orders.length"
-                :pageSizeOptions="[2, 3, 5, 8]"
-                itemLabel="đơn hàng"
-                theme="light"
-                style="margin-top: 1.5rem;"
-              />
-            </div>
-
-            <div v-else class="account-empty-card">
-              <h3>Bạn chưa có đơn hàng nào</h3>
-              <p>Khám phá kho phần mềm bản quyền hoặc tạo một đơn hàng mẫu để kiểm tra tính năng xuất hóa đơn.</p>
-              <LucianButton variant="primary" @click="createSampleOrder">
-                + Tạo đơn hàng mẫu ngay
-              </LucianButton>
-            </div>
+            <MyOrders />
           </template>
 
-          <!-- TAB 4: PROFILE -->
           <template v-else-if="activeTab === 'profile'">
             <div class="account-section-title">
               <div>
@@ -757,127 +497,6 @@ async function logout() {
       </div>
     </div>
 
-    <!-- MODAL 1: ACTIVATION GUIDE -->
-    <div v-if="selectedOrderForGuide" class="auth-modal-overlay" @click.self="selectedOrderForGuide = null">
-      <div class="auth-modal-card guide-modal">
-        <div class="auth-modal-header">
-          <h3>Hướng dẫn kích hoạt bản quyền</h3>
-          <button type="button" class="modal-close-btn" @click="selectedOrderForGuide = null">✕</button>
-        </div>
-
-        <div class="guide-modal-content">
-          <div class="guide-key-banner">
-            <span>Mã bản quyền:</span>
-            <code>{{ selectedOrderForGuide.licenseCode }}</code>
-            <LucianCopyButton
-              :text="selectedOrderForGuide.licenseCode"
-              feedback-text="Đã chép!"
-              label="Sao chép"
-              :compact="false"
-            />
-          </div>
-
-          <ol class="guide-steps">
-            <li>
-              <b>Bước 1: Tải bộ cài đặt chính thức</b>
-              <p>Truy cập trang chủ của nhà phát triển phần mềm hoặc kho tải DXTechs để tải file cài đặt mới nhất.</p>
-            </li>
-            <li>
-              <b>Bước 2: Cài đặt và mở ứng dụng</b>
-              <p>Chạy file Setup, hoàn tất cài đặt theo hướng dẫn trên màn hình.</p>
-            </li>
-            <li>
-              <b>Bước 3: Nhập mã kích hoạt</b>
-              <p>Chọn <i>Account &gt; Change Product Key</i> hoặc <i>Enter License Code</i>, dán mã bản quyền ở trên vào và bấm <i>Activate</i>.</p>
-            </li>
-            <li>
-              <b>Bước 4: Hoàn tất &amp; Bảo hành</b>
-              <p>Hệ thống xác nhận bản quyền hoạt động vĩnh viễn / theo gói. Đội ngũ DXTechs hỗ trợ UltraViewer 24/7 khi bạn cần.</p>
-            </li>
-          </ol>
-
-          <div class="modal-actions">
-            <LucianButton variant="primary" @click="selectedOrderForGuide = null">
-              Đã hiểu &amp; Đóng
-            </LucianButton>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MODAL 2: INVOICE SIMULATION -->
-    <div v-if="selectedOrderForInvoice" class="auth-modal-overlay" @click.self="selectedOrderForInvoice = null">
-      <div class="auth-modal-card invoice-modal">
-        <div class="auth-modal-header">
-          <h3>Hóa đơn điện tử GTGT (Demo)</h3>
-          <button type="button" class="modal-close-btn" @click="selectedOrderForInvoice = null">✕</button>
-        </div>
-
-        <div class="mock-invoice-paper">
-          <div class="invoice-paper-top">
-            <div>
-              <strong>CÔNG TY TNHH CÔNG NGHỆ DXTECHS VIỆT NAM</strong>
-              <small>Mã số thuế: 0317892641</small>
-              <small>Địa chỉ: Tầng 12, Tòa nhà DXTechs Tower, Quận 1, TP. HCM</small>
-            </div>
-            <div class="invoice-num-box">
-              <span>HÓA ĐƠN GTGT</span>
-              <b>{{ selectedOrderForInvoice.id }}</b>
-              <small>Ngày: {{ selectedOrderForInvoice.date }}</small>
-            </div>
-          </div>
-
-          <div class="invoice-customer-info">
-            <div><span>Khách hàng:</span> <b>{{ shop.user?.name }}</b></div>
-            <div><span>Email:</span> <b>{{ shop.user?.email }}</b></div>
-          </div>
-
-          <table class="invoice-items-table">
-            <thead>
-              <tr>
-                <th>Nội dung dịch vụ</th>
-                <th>SL</th>
-                <th>Đơn giá</th>
-                <th>Thành tiền</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in selectedOrderForInvoice.items" :key="item.product.id">
-                <td>{{ item.product.name }}</td>
-                <td>{{ item.quantity }}</td>
-                <td>{{ formatPrice(item.product.price) }}</td>
-                <td>{{ formatPrice(item.product.price * item.quantity) }}</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="3" class="text-right"><b>Tổng thanh toán (đã gồm VAT):</b></td>
-                <td class="text-accent font-bold">{{ formatPrice(selectedOrderForInvoice.total) }}</td>
-              </tr>
-            </tfoot>
-          </table>
-
-          <div class="invoice-stamp-box">
-            <div class="digital-signature">
-              <span>KÝ BỞI: CÔNG TY TNHH CÔNG NGHỆ DXTECHS VIỆT NAM</span>
-              <small>Chứng thư số VN-CA · Ngày ký: {{ selectedOrderForInvoice.date }}</small>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <LucianButton
-            variant="secondary"
-            @click="shop.notify('Đã gửi bản in PDF hóa đơn điện tử về email của bạn!')"
-          >
-            Tải PDF bản in
-          </LucianButton>
-          <LucianButton variant="primary" @click="selectedOrderForInvoice = null">
-            Đóng
-          </LucianButton>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 </template>

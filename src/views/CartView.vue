@@ -1,36 +1,36 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, watch } from 'vue'
 import PageIntro from '../components/PageIntro.vue'
 import { formatPrice } from '../data/products.ts'
-import { useShopStore } from '../stores/shop.ts'
+import { useShopStore, type CartItem } from '../stores/shop.ts'
 
 const shop = useShopStore()
-const couponInput = ref('')
-const couponMessage = ref<{ text: string; isError: boolean } | null>(null)
+
+// PR-C4: giá, tồn kho, tổng tiền lấy từ báo giá của server; đổi số lượng ⇒ báo giá lại (chờ 400 ms).
+let quoteTimer: ReturnType<typeof setTimeout> | undefined
+onMounted(() => void shop.refreshQuote())
+watch(() => shop.cart, () => {
+  clearTimeout(quoteTimer)
+  quoteTimer = setTimeout(() => void shop.refreshQuote(), 400)
+}, { deep: true })
+
+function unitPrice(item: CartItem) {
+  return shop.quoteLineFor(item)?.unitPriceVnd ?? item.product.price
+}
+
+function stockNote(item: CartItem) {
+  const line = shop.quoteLineFor(item)
+  if (!line || line.status === 'ok') return ''
+  if (line.status === 'insufficient_stock') return `Chỉ còn ${line.availableQuantity} — giảm số lượng để đặt hàng`
+  if (line.status === 'out_of_stock') return 'Tạm hết hàng'
+  return 'Không còn bán'
+}
 
 function useFallbackImage(event: Event) {
   const image = event.currentTarget
   if (image instanceof HTMLImageElement && !image.src.endsWith('/software.svg')) {
     image.src = '/products/software.svg'
   }
-}
-
-function handleApplyCoupon(codeToApply?: string) {
-  const targetCode = codeToApply || couponInput.value
-  if (!targetCode.trim()) {
-    couponMessage.value = { text: 'Vui lòng nhập mã ưu đãi trước khi áp dụng.', isError: true }
-    return
-  }
-  const res = shop.applyCoupon(targetCode)
-  couponMessage.value = { text: res.message, isError: !res.success }
-  if (res.success) {
-    couponInput.value = ''
-  }
-}
-
-function handleRemoveCoupon() {
-  shop.removeCoupon()
-  couponMessage.value = null
 }
 
 function confirmClearCart() {
@@ -81,56 +81,14 @@ function confirmClearCart() {
               Xóa sản phẩm
             </button>
           </div>
-          <strong class="cart-unit-price">{{ formatPrice(item.product.price) }}</strong>
+          <strong class="cart-unit-price">{{ formatPrice(unitPrice(item)) }}<small v-if="stockNote(item)" class="cart-stock-note">{{ stockNote(item) }}</small></strong>
           <div class="quantity-control">
             <button type="button" :aria-label="`Giảm số lượng ${item.product.name}`" @click="shop.updateQuantity(item.product.id, item.quantity - 1)">−</button>
             <span>{{ item.quantity }}</span>
             <button type="button" :aria-label="`Tăng số lượng ${item.product.name}`" @click="shop.updateQuantity(item.product.id, item.quantity + 1)">+</button>
           </div>
-          <strong class="cart-line-price">{{ formatPrice(item.product.price * item.quantity) }}</strong>
+          <strong class="cart-line-price">{{ formatPrice(shop.quoteLineFor(item)?.lineTotalVnd ?? unitPrice(item) * item.quantity) }}</strong>
         </article>
-
-        <!-- Voucher Input Block -->
-        <div class="cart-coupon-card">
-          <div class="cart-coupon-header">
-            <span class="coupon-icon" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/>
-                <circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>
-              </svg>
-            </span>
-            <div>
-              <strong>Mã giảm giá &amp; Ưu đãi đối tác</strong>
-              <small>Nhập mã để nhận chiết khấu trực tiếp vào đơn hàng</small>
-            </div>
-          </div>
-
-          <div v-if="shop.couponCode" class="active-coupon-pill">
-            <span>Mã đang dùng: <strong>{{ shop.couponCode }}</strong> (-{{ shop.discountPercent }}%)</span>
-            <button type="button" class="remove-coupon-btn" @click="handleRemoveCoupon">Hủy áp dụng</button>
-          </div>
-
-          <form v-else class="cart-coupon-form" @submit.prevent="handleApplyCoupon()">
-            <input
-              v-model="couponInput"
-              type="text"
-              placeholder="Nhập mã: DXTECHS2025, WELCOME10..."
-              aria-label="Mã ưu đãi"
-            />
-            <button type="submit" class="button button-outline">Áp dụng</button>
-          </form>
-
-          <div v-if="couponMessage" :class="['coupon-alert', { 'is-error': couponMessage.isError }]">
-            {{ couponMessage.text }}
-          </div>
-
-          <div class="quick-coupon-hints">
-            <span>Gợi ý mã:</span>
-            <button type="button" class="coupon-chip" @click="handleApplyCoupon('DXTECHS2025')">DXTECHS2025 (-15%)</button>
-            <button type="button" class="coupon-chip" @click="handleApplyCoupon('WELCOME10')">WELCOME10 (-10%)</button>
-            <button type="button" class="coupon-chip" @click="handleApplyCoupon('VIP20')">VIP20 (-20%)</button>
-          </div>
-        </div>
 
         <RouterLink class="back-to-shop" to="/dich-vu">
           <span aria-hidden="true">←</span> Tiếp tục khám phá dịch vụ số
@@ -147,7 +105,7 @@ function confirmClearCart() {
         </div>
 
         <div v-if="shop.discountAmount > 0" class="summary-row discount-row">
-          <span>Ưu đãi ({{ shop.couponCode }} -{{ shop.discountPercent }}%)</span>
+          <span>Ưu đãi</span>
           <b class="discount-value">−{{ formatPrice(shop.discountAmount) }}</b>
         </div>
 
@@ -161,9 +119,11 @@ function confirmClearCart() {
           <strong class="total-price-tag">{{ formatPrice(shop.finalTotal) }}</strong>
         </div>
 
-        <p class="summary-note">Giá hiển thị là số liệu demo bằng VNĐ. Hệ thống hỗ trợ trải nghiệm thanh toán mô phỏng an toàn.</p>
+        <p v-if="shop.quoteError" class="summary-note cart-quote-error" role="alert">{{ shop.quoteError }}</p>
+        <p v-else-if="shop.quote && !shop.quote.canCheckout" class="summary-note cart-quote-error" role="alert">Một số sản phẩm không đủ hàng — điều chỉnh giỏ để tiếp tục.</p>
+        <p v-else class="summary-note">Giá do hệ thống tính tại thời điểm đặt hàng. Thanh toán bằng chuyển khoản VietQR, key giao tự động khi nhận tiền.</p>
 
-        <RouterLink class="button button-primary button-wide checkout-cta-btn" to="/thanh-toan">
+        <RouterLink v-if="!shop.quote || shop.quote.canCheckout" class="button button-primary button-wide checkout-cta-btn" to="/thanh-toan">
           Tiến hành thanh toán <span>→</span>
         </RouterLink>
 
@@ -234,3 +194,8 @@ function confirmClearCart() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.cart-stock-note { display: block; margin-top: .25rem; color: #b45309; font-size: .78rem; font-weight: 500; }
+.cart-quote-error { color: #b91c1c; }
+</style>
