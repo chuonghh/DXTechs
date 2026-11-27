@@ -4,12 +4,14 @@ import { useRoute } from 'vue-router'
 import PageIntro from '../components/PageIntro.vue'
 import CategoryCarousel, { type CategoryCarouselItem } from '../components/CategoryCarousel.vue'
 import {
-  solutionCategories,
+  categorySlugOf,
+  itemSlugOf,
   solutionCategoryPath,
   solutionItemPath,
-  solutionSlug,
   solutionSubcategoryPath,
+  subcategorySlugOf,
 } from '../data/solutions.ts'
+import { useContentStore } from '../stores/content'
 
 const route = useRoute()
 const relatedTrack = ref<HTMLElement | null>(null)
@@ -399,15 +401,21 @@ const trainingLandingThemes = {
   },
 } as const
 
-const category = computed(() => solutionCategories.find(
-  (item) => solutionSlug(item.name) === route.params.categorySlug,
+// CT-C1: nhóm → trang → hạng mục đọc từ API nội dung (dữ liệu cũ hiển thị ngay, thay khi API trả về). So khớp theo slug
+// của API (không sinh lại từ tên) ⇒ biên tập viên đổi tiêu đề không làm gãy URL.
+const content = useContentStore()
+void content.loadSolutions()
+const solutionCategories = computed(() => content.solutions)
+const category = computed(() => solutionCategories.value.find(
+  (item) => categorySlugOf(item) === route.params.categorySlug,
 ))
 const subcategory = computed(() => category.value?.subcategories.find(
-  (item) => solutionSlug(item.name) === route.params.subcategorySlug,
+  (item) => subcategorySlugOf(item) === route.params.subcategorySlug,
 ))
-const solutionItem = computed(() => subcategory.value?.items.find(
-  (item) => solutionSlug(item) === route.params.itemSlug,
-))
+const solutionItem = computed(() => {
+  const sub = subcategory.value
+  return sub?.items.find((item) => itemSlugOf(sub, item) === route.params.itemSlug)
+})
 const isItemPage = computed(() => Boolean(route.params.itemSlug))
 const isWebsiteDevelopmentPage = computed(() => solutionItem.value?.startsWith('Thiết kế và phát triển website'))
 const isWebsiteContentPage = computed(() => solutionItem.value?.startsWith('Quản trị nội dung và cập nhật website'))
@@ -650,7 +658,7 @@ const activeWebsitePlans = computed(() => isTechnicalSeoPage.value
   : isWebsiteAnalyticsPage.value
     ? websiteAnalyticsPlans
     : websiteContentPlans)
-const pageIndex = computed(() => solutionCategories.indexOf(category.value ?? solutionCategories[0]))
+const pageIndex = computed(() => solutionCategories.value.indexOf(category.value ?? solutionCategories.value[0]))
 const subcategoryIndex = computed(() => category.value?.subcategories.indexOf(subcategory.value!) ?? 0)
 const activeImage = computed(() => isTechnicalSeoPage.value
   ? 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=85'
@@ -806,7 +814,7 @@ const categorySubcategoryCarouselItems = computed<CategoryCarouselItem[]>(() => 
 })
 
 const relatedCategoriesCarouselItems = computed<CategoryCarouselItem[]>(() => {
-  return solutionCategories.map((cat, index) => ({
+  return solutionCategories.value.map((cat, index) => ({
     id: cat.name,
     title: cat.name,
     eyebrow: 'Danh mục giải pháp',

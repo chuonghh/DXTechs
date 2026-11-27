@@ -2,7 +2,7 @@ import { articles } from './articles'
 import { categories, products } from './products'
 import { resourceSections } from './resources'
 import {
-  solutionCategories,
+  staticSolutionCategories as solutionCategories,
   solutionCategoryPath,
   solutionItemPath,
   solutionSubcategoryPath,

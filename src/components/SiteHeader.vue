@@ -2,7 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  solutionCategories,
+  type SolutionCategory,
+  type SolutionSubcategory,
   solutionCategoryPath,
   solutionItemPath,
   solutionSlug,
@@ -12,11 +13,15 @@ import { resourceSections } from '../data/resources'
 import { formatPrice } from '../data/products'
 import { findSearchResults, normalizeSearch, searchEntries, type SearchResult } from '../data/search'
 import { useShopStore } from '../stores/shop'
+import { useContentStore } from '../stores/content'
 
 const shop = useShopStore()
 const route = useRoute()
 const router = useRouter()
-const navCategories = computed(() => solutionCategories.filter(c => c.name !== 'Sản phẩm'))
+// CT-C1: menu Giải pháp đọc cây chủ đề từ API (dữ liệu cũ hiển thị ngay, thay khi API trả về).
+const content = useContentStore()
+void content.loadSolutions()
+const navCategories = computed(() => content.solutions.filter(c => c.name !== 'Sản phẩm'))
 const mobileNavToggle = ref<HTMLDetailsElement | null>(null)
 const servicesOpen = ref<string | false>(false)
 const resourceMenuOpen = ref(false)
@@ -104,7 +109,7 @@ function selectLanguage(val: 'vi' | 'en') {
   langOpen.value = false
 }
 
-function selectedSubcategory(category: typeof solutionCategories[number]) {
+function selectedSubcategory(category: SolutionCategory) {
   return category.subcategories.find((subcategory) => subcategory.name === activeSubcategories.value[category.name])
     || category.subcategories[0]
 }
@@ -113,12 +118,12 @@ function selectSubcategory(categoryName: string, subcategoryName: string) {
   activeSubcategories.value[categoryName] = subcategoryName
 }
 
-function subcategoryImage(category: typeof solutionCategories[number], subcategory: typeof solutionCategories[number]['subcategories'][number]) {
+function subcategoryImage(category: SolutionCategory, subcategory: SolutionSubcategory) {
   const index = category.subcategories.indexOf(subcategory)
   return menuImages[index % menuImages.length]
 }
 
-function subcategoryDescription(subcategory: typeof solutionCategories[number]['subcategories'][number]) {
+function subcategoryDescription(subcategory: SolutionSubcategory) {
   return subcategory.items.length
     ? `Giải pháp linh hoạt cho ${subcategory.name.toLocaleLowerCase('vi')}, được thiết kế theo mục tiêu và quy trình thực tế của doanh nghiệp.`
     : `Tìm hiểu giải pháp ${subcategory.name.toLocaleLowerCase('vi')} và trao đổi phương án phù hợp với quy mô, quy trình của tổ chức bạn.`
