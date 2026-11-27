@@ -28,7 +28,7 @@ export interface DemoOrder {
 export interface DemoUser {
   name: string
   email: string
-  role: 'customer' | 'admin'
+  role: 'customer' | 'editor' | 'admin'
   phone?: string
   company?: string
   avatar?: string

@@ -14,6 +14,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => user.value !== null)
   const isAdmin = computed(() => user.value?.role === 'admin')
+  /** Biên tập viên hoặc admin — được vào trang quản trị nội dung (server kiểm lại bằng policy `content`). */
+  const canManageContent = computed(() => user.value?.role === 'editor' || user.value?.role === 'admin')
 
   // Refresh tự động (trong api/client) hoặc phiên bị thu hồi ⇒ cập nhật store.
   authApi.subscribeSession((next) => {
@@ -61,5 +63,5 @@ export const useAuthStore = defineStore('auth', () => {
     return authApi.changePassword(currentPassword, newPassword)
   }
 
-  return { user, status, isAuthenticated, isAdmin, init, login, register, logout, logoutAll, changePassword }
+  return { user, status, isAuthenticated, isAdmin, canManageContent, init, login, register, logout, logoutAll, changePassword }
 })

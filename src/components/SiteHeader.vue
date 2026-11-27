@@ -169,6 +169,7 @@ function resourcePath(sectionSlug: string, topicSlug?: string) {
             <span class="user-avatar-dot">{{ shop.user.name.charAt(0).toUpperCase() }}</span>
             <span>{{ shop.user.name.split(' ')[0] }}</span>
             <span v-if="shop.user.role === 'admin'" class="user-role-badge">Admin</span>
+            <span v-else-if="shop.user.role === 'editor'" class="user-role-badge">Biên tập</span>
             <svg class="dropdown-chevron" viewBox="0 0 16 16" width="10" height="10" fill="currentColor">
               <path d="m3.5 6 4.5 4 4.5-4" />
             </svg>
@@ -182,7 +183,7 @@ function resourcePath(sectionSlug: string, topicSlug?: string) {
               <div class="role-pill" :class="shop.user.role">
                 <svg v-if="shop.user.role === 'admin'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M6 20a6 6 0 0 1 12 0"/></svg>
-                <span>{{ shop.user.role === 'admin' ? 'Quản trị viên (Admin)' : 'Khách hàng xác thực' }}</span>
+                <span>{{ shop.user.role === 'admin' ? 'Quản trị viên (Admin)' : shop.user.role === 'editor' ? 'Biên tập viên' : 'Khách hàng xác thực' }}</span>
               </div>
             </div>
 
@@ -194,6 +195,10 @@ function resourcePath(sectionSlug: string, topicSlug?: string) {
               <RouterLink to="/don-hang" class="popover-link">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3"/></svg>
                 <span>Kho Giấy phép &amp; Đơn hàng</span>
+              </RouterLink>
+              <RouterLink v-if="shop.user.role === 'admin' || shop.user.role === 'editor'" to="/quan-tri-noi-dung" class="popover-link">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                <span>Quản trị nội dung</span>
               </RouterLink>
               <RouterLink v-if="shop.user.role === 'admin'" to="/admin" class="popover-link admin-link-highlight">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
