@@ -6,6 +6,8 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     /** Cần quyền admin. Server vẫn là nơi kiểm tra quyền thật. */
     requiresAdmin?: boolean
+    /** Cần quyền quản lý nội dung (editor hoặc admin). */
+    requiresContent?: boolean
     /** Trang chỉ dành cho khách (đã đăng nhập ⇒ chuyển tới /tai-khoan). */
     guestOnly?: boolean
   }

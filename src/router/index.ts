@@ -12,6 +12,7 @@ const CheckoutView = () => import('../views/CheckoutView.vue')
 const AuthView = () => import('../views/AuthView.vue')
 const AccountView = () => import('../views/AccountView.vue')
 const AdminView = () => import('../views/AdminView.vue')
+const ContentAdminView = () => import('../views/ContentAdminView.vue')
 const AboutView = () => import('../views/AboutView.vue')
 const InfoView = () => import('../views/InfoView.vue')
 const ContactView = () => import('../views/ContactView.vue')
@@ -32,6 +33,13 @@ const router = createRouter({
       name: 'admin',
       component: AdminView,
       meta: { requiresAdmin: true },
+    },
+    {
+      // CT-C2 (ADR-015): quản trị nội dung — biên tập viên và admin.
+      path: '/quan-tri-noi-dung',
+      name: 'content-admin',
+      component: ContentAdminView,
+      meta: { requiresContent: true },
     },
     {
       path: '/',
@@ -68,11 +76,14 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
   await auth.init()
-  if ((to.meta.requiresAuth || to.meta.requiresAdmin) && !auth.isAuthenticated) {
+  if ((to.meta.requiresAuth || to.meta.requiresAdmin || to.meta.requiresContent) && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
   if (to.meta.requiresAdmin && !auth.isAdmin) {
     return { name: 'account', query: { denied: 'admin' } }
+  }
+  if (to.meta.requiresContent && !auth.canManageContent) {
+    return { name: 'account', query: { denied: 'content' } }
   }
   if (to.meta.guestOnly && auth.isAuthenticated) {
     return { name: 'account' }

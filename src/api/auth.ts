@@ -11,7 +11,8 @@ export interface UserProfile {
   id: string
   email: string
   fullName: string
-  role: 'customer' | 'admin'
+  /** editor: quản lý nội dung (ADR-015 §4), không thấy đơn hàng/thanh toán. */
+  role: 'customer' | 'editor' | 'admin'
   phone: string | null
   companyName: string | null
   taxCode: string | null
