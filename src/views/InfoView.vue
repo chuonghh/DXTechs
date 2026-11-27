@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import PageIntro from '../components/PageIntro.vue'
 import LucianNotFoundTypo from '../components/LucianNotFoundTypo.vue'
 import CategoryCarousel, { type CategoryCarouselItem } from '../components/CategoryCarousel.vue'
-import { articles } from '../data/articles.ts'
+import ContentBlocks from '../components/ContentBlocks.vue'
+import { useContentStore, type ArticleView } from '../stores/content'
 import { categories } from '../data/products.ts'
 
 const infoCategoryCarouselItems = computed<CategoryCarouselItem[]>(() => {
@@ -28,9 +29,38 @@ const infoCategoryCarouselItems = computed<CategoryCarouselItem[]>(() => {
 })
 
 const route = useRoute()
+const router = useRouter()
 const page = computed(() => String(route.name || 'not-found'))
 
-const selectedArticle = computed(() => articles.find((article) => article.slug === route.params.slug))
+// CT-C1: danh sách tin tức + bài chi tiết đọc từ API (dữ liệu cũ hiển thị ngay, thay khi API trả về).
+const content = useContentStore()
+const articles = computed(() => content.news)
+const articleView = ref<ArticleView | null>(null)
+const articleLoading = ref(false)
+const articleSlug = computed(() => (page.value === 'news' && typeof route.params.slug === 'string' && route.params.slug) || '')
+const selectedArticle = computed(() => articleView.value?.article ?? null)
+let articleRequest: AbortController | undefined
+
+watch(articleSlug, async (slug) => {
+  articleRequest?.abort()
+  articleView.value = null
+  if (!slug) return
+  articleRequest = new AbortController()
+  articleLoading.value = true
+  try {
+    articleView.value = await content.loadArticle(slug, articleRequest.signal)
+    // Slug cũ: API đã chuyển hướng 301 sang bài hiện tại ⇒ đổi URL trên thanh địa chỉ cho khớp (không thêm lịch sử).
+    if (articleView.value && articleView.value.article.slug !== slug) {
+      void router.replace(`/tin-tuc/${articleView.value.article.slug}`)
+    }
+  } catch {
+    // Đã chuyển sang bài khác (request bị huỷ).
+  } finally {
+    articleLoading.value = false
+  }
+}, { immediate: true })
+
+watch(page, (name) => { if (name === 'news') void content.loadNews() }, { immediate: true })
 const activePolicyTab = ref('purchase')
 const selectedProjectCategory = ref('all')
 const newsCategory = ref('all')
@@ -108,7 +138,17 @@ const infoPages: Record<string, { eyebrow: string; title: string; description: s
   },
 }
 
-const currentPage = computed(() => infoPages[page.value] || infoPages['not-found'])
+// Phần đầu trang tin tức tính lại theo bài đang xem (bài tải bất đồng bộ từ API; chuyển bài trong cùng trang cũng cập nhật).
+const currentPage = computed(() => {
+  if (page.value === 'news' && selectedArticle.value) {
+    return {
+      eyebrow: 'GÓC KIẾN THỨC · HƯỚNG DẪN',
+      title: selectedArticle.value.title,
+      description: selectedArticle.value.excerpt || infoPages.news.description,
+    }
+  }
+  return infoPages[page.value] || infoPages['not-found']
+})
 
 const projectShowcases = [
   {
@@ -160,7 +200,7 @@ const filteredProjects = computed(() => {
 
 const filteredArticles = computed(() => {
   const query = newsSearch.value.trim().toLowerCase()
-  return articles.filter((a) => {
+  return articles.value.filter((a) => {
     const matchesSearch = !query || a.title.toLowerCase().includes(query) || a.excerpt.toLowerCase().includes(query)
     const matchesCat = newsCategory.value === 'all' || a.label.toLowerCase().includes(newsCategory.value.toLowerCase())
     return matchesSearch && matchesCat
@@ -394,21 +434,14 @@ const filteredArticles = computed(() => {
       <template v-if="selectedArticle">
         <article class="article-detail">
           <div class="article-meta">
-            <span class="article-tag-badge">{{ selectedArticle.label }}</span>
+            <span v-if="selectedArticle.label" class="article-tag-badge">{{ selectedArticle.label }}</span>
             <span>{{ selectedArticle.date }}</span>
-            <span>·</span>
-            <span>{{ selectedArticle.readTime }}</span>
+            <template v-if="selectedArticle.readTime"><span>·</span><span>{{ selectedArticle.readTime }}</span></template>
           </div>
           <h1 class="article-detail-title">{{ selectedArticle.title }}</h1>
-          <img class="article-detail-image" :src="selectedArticle.imageUrl" :alt="selectedArticle.imageAlt" />
-          <p class="article-lead">{{ selectedArticle.excerpt }}</p>
-          <section v-for="sec in selectedArticle.sections" :key="sec.heading" class="article-detail-section">
-            <h2>{{ sec.heading }}</h2>
-            <p v-for="paragraph in sec.paragraphs" :key="paragraph">{{ paragraph }}</p>
-            <ul v-if="sec.bullets">
-              <li v-for="bullet in sec.bullets" :key="bullet">{{ bullet }}</li>
-            </ul>
-          </section>
+          <img v-if="selectedArticle.imageUrl" class="article-detail-image" :src="selectedArticle.imageUrl" :alt="selectedArticle.imageAlt" />
+          <p v-if="selectedArticle.excerpt" class="article-lead">{{ selectedArticle.excerpt }}</p>
+          <ContentBlocks :blocks="articleView!.blocks" :media="articleView!.media" />
           <div class="article-cta-box">
             <div>
               <h3>Cần hỗ trợ về bài viết này?</h3>
@@ -418,6 +451,19 @@ const filteredArticles = computed(() => {
           </div>
           <RouterLink class="back-to-shop" to="/tin-tuc">← Quay lại danh sách tin tức &amp; kiến thức</RouterLink>
         </article>
+      </template>
+
+      <template v-else-if="articleSlug && articleLoading">
+        <div class="empty-state" role="status"><p>Đang tải bài viết…</p></div>
+      </template>
+
+      <template v-else-if="articleSlug">
+        <div class="empty-state">
+          <div class="empty-icon">⌕</div>
+          <h2>Không tìm thấy bài viết</h2>
+          <p>Bài viết có thể đã được gỡ hoặc đổi địa chỉ.</p>
+          <RouterLink class="button button-primary" to="/tin-tuc">Xem tất cả bài viết</RouterLink>
+        </div>
       </template>
 
       <template v-else>

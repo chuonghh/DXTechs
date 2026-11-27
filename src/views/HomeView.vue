@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
-  solutionCategories,
+  categorySlugOf,
   solutionCategoryPath,
   solutionSubcategoryPath,
 } from '../data/solutions'
-import { articles } from '../data/articles'
+import { useContentStore } from '../stores/content'
 import EditorialHero from '../components/EditorialHero.vue'
 import CategoryCarousel, { type CategoryCarouselItem } from '../components/CategoryCarousel.vue'
 
-// Categories from solutions.ts
-const serviceCategory = computed(() => solutionCategories.find((c) => c.name === 'Dịch vụ'))
-const implementationCategory = computed(() => solutionCategories.find((c) => c.name === 'Tư vấn triển khai'))
+// CT-C1: giải pháp + tin tức đọc từ API qua store (dữ liệu cũ hiển thị ngay, thay khi API trả về).
+const content = useContentStore()
+void content.loadSolutions()
+void content.loadNews()
+const articles = computed(() => content.news.slice(0, 6))
+const serviceCategory = computed(() => content.solutions.find((c) => categorySlugOf(c) === 'dich-vu'))
+const implementationCategory = computed(() => content.solutions.find((c) => categorySlugOf(c) === 'tu-van-trien-khai'))
 
 // Curated Unsplash images for services
 const serviceImages = [

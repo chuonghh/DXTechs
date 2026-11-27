@@ -1,5 +1,9 @@
 export interface SolutionSubcategory {
   name: string
+  /** Slug trên URL (dữ liệu từ API). Dữ liệu cũ không có ⇒ sinh từ tên. */
+  slug?: string
+  /** Slug của từng hạng mục theo tên (dữ liệu từ API). */
+  itemSlugs?: Record<string, string>
   description?: string
   highlights?: string[]
   focusAreas?: string[]
@@ -9,12 +13,14 @@ export interface SolutionSubcategory {
 
 export interface SolutionCategory {
   name: string
+  slug?: string
   description: string
   image: string
   subcategories: SolutionSubcategory[]
 }
 
-export const solutionCategories: SolutionCategory[] = ([
+/** Dữ liệu gắn cứng — dự phòng khi API nội dung chưa trả được (CT-C1). Trang và menu đọc qua store `content`. */
+export const staticSolutionCategories: SolutionCategory[] = ([
   {
     name: 'Dịch vụ',
     description: 'Đội ngũ công nghệ đồng hành từ ý tưởng, thiết kế đến vận hành và tăng trưởng.',
@@ -352,14 +358,26 @@ export function solutionSlug(value: string): string {
     .replace(/^-|-$/g, '')
 }
 
+export function categorySlugOf(category: SolutionCategory): string {
+  return category.slug ?? solutionSlug(category.name)
+}
+
+export function subcategorySlugOf(subcategory: SolutionSubcategory): string {
+  return subcategory.slug ?? solutionSlug(subcategory.name)
+}
+
+export function itemSlugOf(subcategory: SolutionSubcategory, item: string): string {
+  return subcategory.itemSlugs?.[item] ?? solutionSlug(item)
+}
+
 export function solutionCategoryPath(category: SolutionCategory): string {
-  return `/giai-phap/${solutionSlug(category.name)}`
+  return `/giai-phap/${categorySlugOf(category)}`
 }
 
 export function solutionSubcategoryPath(category: SolutionCategory, subcategory: SolutionSubcategory): string {
-  return `${solutionCategoryPath(category)}/${solutionSlug(subcategory.name)}`
+  return `${solutionCategoryPath(category)}/${subcategorySlugOf(subcategory)}`
 }
 
 export function solutionItemPath(category: SolutionCategory, subcategory: SolutionSubcategory, item: string): string {
-  return `${solutionSubcategoryPath(category, subcategory)}/${solutionSlug(item)}`
+  return `${solutionSubcategoryPath(category, subcategory)}/${itemSlugOf(subcategory, item)}`
 }

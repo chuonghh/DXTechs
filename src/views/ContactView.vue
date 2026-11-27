@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import LucianButton from '../components/LucianButton.vue'
 import LucianCopyButton from '../components/LucianCopyButton.vue'
@@ -10,8 +10,9 @@ import LucianErrorPlug from '../components/LucianErrorPlug.vue'
 import LucianOfflineQueue from '../components/LucianOfflineQueue.vue'
 import PageIntro from '../components/PageIntro.vue'
 import { categories } from '../data/products.ts'
-import { solutionCategories } from '../data/solutions.ts'
 import { useShopStore } from '../stores/shop.ts'
+import { useContentStore } from '../stores/content'
+import { ApiError, submitLead } from '../api'
 
 const shop = useShopStore()
 const route = useRoute()
@@ -77,13 +78,47 @@ const form = reactive({
     : '',
 })
 
-const contactServices = [...new Set([
+// CT-C1: danh sách giải pháp lấy từ API nội dung (dữ liệu cũ hiển thị ngay).
+const content = useContentStore()
+void content.loadSolutions()
+const contactServices = computed(() => [...new Set([
   ...categories.map((category) => category.name),
-  ...solutionCategories.flatMap((category) => category.subcategories.flatMap((subcategory) => [
+  ...content.solutions.flatMap((category) => category.subcategories.flatMap((subcategory) => [
     subcategory.name,
     ...subcategory.items,
   ])),
-])]
+])])
+
+// Form gửi về API lead (ADR-015 §6): ô đồng ý bắt buộc (NĐ 13/2023), trường bẫy `website` (ẩn với người thật),
+// thời gian điền form để lọc bot gửi tức thì. Server chặn thật bằng rate limit 5 lần/giờ/IP.
+const consent = ref(false)
+const honeypot = ref('')
+const submitError = ref('')
+let formOpenedAt = Date.now()
+onMounted(() => { formOpenedAt = Date.now() })
+
+function leadMessage() {
+  const lines = [
+    `Nhóm khách hàng: ${customerTypeOptions.find((o) => o.value === customerType.value)?.label ?? customerType.value}`,
+    `Quan tâm: ${form.service || 'Tư vấn tổng thể'}`,
+    `Khung giờ gọi lại: ${preferredTimeOptions.find((o) => o.value === preferredTime.value)?.label ?? preferredTime.value}`,
+  ]
+  if (needRemoteSupport.value) lines.push(`Cần hỗ trợ từ xa${ultraviewerId.value ? ` — ID: ${ultraviewerId.value}` : ''}`)
+  lines.push('', form.message)
+  return lines.join('\n').slice(0, 2000)
+}
+
+function describeLeadError(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 422) return 'Hệ thống chưa mở nhận đăng ký trực tuyến. Vui lòng gọi hotline 1900 886 628 hoặc gửi email sales@dxtechs.vn — chúng tôi phản hồi trong giờ làm việc.'
+    if (error.status === 429) return 'Bạn đã gửi nhiều yêu cầu trong thời gian ngắn. Vui lòng thử lại sau ít phút hoặc gọi hotline 1900 886 628.'
+    if (error.status === 400) {
+      const fields = Object.values(error.problem?.errors ?? {}).flat()
+      return fields.length ? fields.join(' ') : 'Thông tin chưa hợp lệ, vui lòng kiểm tra lại.'
+    }
+  }
+  return 'Chưa gửi được yêu cầu (lỗi kết nối). Vui lòng thử lại hoặc gọi hotline 1900 886 628.'
+}
 
 const supportMetrics = [
   { label: 'Cấp phép tự động', value: '< 30 Giây', sub: 'Hệ thống AI Gateway hoạt động 100%', status: 'online' },
@@ -150,13 +185,32 @@ const faqs = ref([
   },
 ])
 
-function submitRequest() {
+async function submitRequest() {
+  submitError.value = ''
+  if (!consent.value) {
+    submitError.value = 'Vui lòng đồng ý để DXTechs dùng thông tin này liên hệ tư vấn.'
+    return
+  }
+
   isSubmitting.value = true
-  setTimeout(() => {
-    isSubmitting.value = false
+  try {
+    await submitLead({
+      kind: 'consultation',
+      fullName: form.name.trim(),
+      email: form.email.trim() || undefined,
+      phone: form.phone.trim() || undefined,
+      message: leadMessage(),
+      consent: consent.value,
+      website: honeypot.value,
+      elapsedMs: Date.now() - formOpenedAt,
+    })
     sent.value = true
     shop.notify(`Cảm ơn ${form.name}, yêu cầu tư vấn đã được tiếp nhận thành công!`)
-  }, 400)
+  } catch (error) {
+    submitError.value = describeLeadError(error)
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function resetForm() {
@@ -168,6 +222,9 @@ function resetForm() {
   form.message = ''
   ultraviewerId.value = ''
   needRemoteSupport.value = false
+  consent.value = false
+  submitError.value = ''
+  formOpenedAt = Date.now()
 }
 </script>
 
@@ -435,6 +492,19 @@ function resetForm() {
             ></textarea>
           </label>
 
+          <!-- Trường bẫy bot: người thật không thấy, không điền (ADR-015 §6). -->
+          <div class="lead-honeypot" aria-hidden="true">
+            <label>Website <input v-model="honeypot" name="website" tabindex="-1" autocomplete="off" /></label>
+          </div>
+
+          <!-- Đồng ý xử lý dữ liệu cá nhân (NĐ 13/2023) — văn bản chính thức do pháp chế duyệt (server: Content:Leads:ConsentVersion). -->
+          <label class="lead-consent">
+            <input v-model="consent" type="checkbox" required />
+            <span>Tôi đồng ý để DXTechs lưu và dùng thông tin trên để liên hệ tư vấn, theo <RouterLink to="/chinh-sach">chính sách bảo vệ dữ liệu cá nhân</RouterLink>.</span>
+          </label>
+
+          <p v-if="submitError" class="lead-error" role="alert">{{ submitError }}</p>
+
           <!-- Submit Button -->
           <div class="form-submit-row">
             <LucianButton
@@ -682,4 +752,10 @@ function resetForm() {
   color: var(--color-primary, #0066cc);
   text-transform: uppercase;
 }
+
+/* CT-C1: form lead gửi về API */
+.lead-honeypot { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.lead-consent { display: flex; gap: .6rem; align-items: flex-start; margin: .5rem 0 1rem; font-size: .9rem; line-height: 1.5; }
+.lead-consent input { margin-top: .2rem; width: 1rem; height: 1rem; flex: none; }
+.lead-error { margin: 0 0 1rem; padding: .75rem 1rem; border-radius: 10px; background: rgba(220, 38, 38, .1); color: #b91c1c; font-size: .9rem; }
 </style>
